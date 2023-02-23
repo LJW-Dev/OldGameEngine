@@ -83,8 +83,6 @@ void updateCameraAngles(double deltaTime)
     else if (playerStruct.phys.verticalAngle < -GLM_MAX_VERT_ANGLE)
         playerStruct.phys.verticalAngle = -GLM_MAX_VERT_ANGLE;
 
-    printf("%f %f\n", playerStruct.phys.horizontalAngle, playerStruct.phys.verticalAngle);
-
     updatePlayerAngles();
 }
 

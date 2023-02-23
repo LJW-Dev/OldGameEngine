@@ -229,7 +229,7 @@ void load_clipWorld(FILE* file, char* name)
 
 void load_XScript(FILE* file, char* name)
 {
-	XScript* header = getNextInPool(XASSET_CLIPMAP).Script;
+	XScript* header = getNextInPool(XASSET_SCRIPT).Script;
 
 	header->name = name;
 
@@ -237,6 +237,7 @@ void load_XScript(FILE* file, char* name)
 	long len = ftell(file);
 	fseek(file, 0, SEEK_SET);
 
+	header->scrLen = len;
 	header->script = new char[len];
 	fread_s(header->script, len, sizeof(char), len, file);
 }

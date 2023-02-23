@@ -78,9 +78,10 @@ struct renderObject
     float zScale;
 };
 
-XFont* renderFont;
-renderObject renderObjects[4];
+#define MAX_RENDER_OBJ 4
+renderObject renderObjects[MAX_RENDER_OBJ];
 
+XFont* renderFont;
 XworldObject* worldObj;
 
 
@@ -170,8 +171,6 @@ void printText2D(const char* text, int x, int y, int size)
         float uv_x = float(line_x) / renderFont->lettersPerLine;
         float uv_y = float(line_y) / renderFont->lettersPerLine;
 
-        
-
         glm::vec2 uv_up_left = glm::vec2(uv_x, uv_y);
         glm::vec2 uv_up_right = glm::vec2(uv_x + charWidth, uv_y);
         glm::vec2 uv_down_left = glm::vec2(uv_x, uv_y + charHeight);
@@ -184,43 +183,6 @@ void printText2D(const char* text, int x, int y, int size)
         UVs.push_back(uv_down_right);
         UVs.push_back(uv_up_right);
         UVs.push_back(uv_down_left);
-
-
-        //float totalLines = static_cast<float>(renderFont->letterCount / renderFont->lettersPerLine);
-        //float totalLettersPerLine = static_cast<float>(renderFont->lettersPerLine);
-        //
-        //float line = static_cast<float>(j / renderFont->lettersPerLine);
-        //float letterLineOffset = static_cast<float>(j % renderFont->lettersPerLine);
-        //
-        //
-        //float uv_x = letterLineOffset / totalLettersPerLine;
-        //float uv_y = line / totalLines;
-        //
-        //float charWidth = 1 / totalLettersPerLine;
-
-        //glm::vec2 uv_up_left = glm::vec2(uv_x, uv_y);
-        //glm::vec2 uv_up_right = glm::vec2(uv_x + charWidth, uv_y);
-        //glm::vec2 uv_down_left = glm::vec2(uv_x, uv_y + charWidth);
-        //glm::vec2 uv_down_right = glm::vec2(uv_x + charWidth, uv_y + charWidth);
-        //
-        //UVs.push_back(uv_up_left);
-        //UVs.push_back(uv_down_left);
-        //UVs.push_back(uv_up_right);
-        //
-        //UVs.push_back(uv_down_right);
-        //UVs.push_back(uv_up_right);
-        //UVs.push_back(uv_down_left);
-        //
-        //
-        //for (int j = 0; j < renderFont->letterCount; j++)
-        //{
-        //    if (renderFont->letterArray[j] == text[i])
-        //    {
-        //        
-        //
-        //        break;
-        //    }
-        //}
     }
 
     draw2D(renderFont->texture, &vertices[0], vertices.size() * sizeof(glm::vec2), vertices.size(), &UVs[0], UVs.size() * sizeof(glm::vec2));
@@ -282,52 +244,6 @@ void drawRenderObjects()
     }
 }
 
-int eeeee = 0;
-void drawText()
-{
-    char buffer[100];
-    sprintf_s(buffer, "COUNT %i", eeeee);
-    //printText2D(buffer, 0, 0, 60);
-
-
-    //drawImage2D(renderObjects[0].texture, 200, 200, 200);
-    //drawImage2D(renderObjects[0].texture, 200, 400, 200);
-    //drawImage2D(renderObjects[0].texture, 200, 600, 200);
-    eeeee++;
-}
-
-void drawBoundingBoxes()
-{
-    /*glUseProgram(shaderColourInfo.shaderID);
-
-    glm::mat4 MVP = player.renderInfo.projectionMatrix * player.renderInfo.viewMatrix;
-    glUniformMatrix4fv(shaderColourInfo.uniform_MVP, 1, GL_FALSE, &MVP[0][0]);
-
-    XClipMap* worldBounds = findAsset(XASSET_CLIPMAP, "assets\\world\\world.clip").Clip;
-
-    for (int i = 0; i < worldBounds->numClipBounds; i++)
-    {
-        ClipBound* clip = &worldBounds->clips[i];
-        glm::vec3 min = clip->origin + clip->mins;
-        glm::vec3 max = clip->origin + clip->maxs;
-
-        float vertexbuffer[] = {
-                min.x, min.y, min.z,
-                max.x, max.y, max.z
-        };
-
-        glBindBuffer(GL_ARRAY_BUFFER, shaderColourInfo.vertexBuffer);
-        glBufferData(GL_ARRAY_BUFFER, 6 * sizeof(float), vertexbuffer, GL_STATIC_DRAW);
-
-        glBindBuffer(GL_ARRAY_BUFFER, shaderColourInfo.colourBuffer);
-        glBufferData(GL_ARRAY_BUFFER, 6 * sizeof(float), preview_cube_colours, GL_STATIC_DRAW);
-
-        glDrawArrays(GL_LINES, 0, 2);
-    
-        
-    }*/
-}
-
 //double lastTime = 0;
 void drawScene(float deltaTime)
 {
@@ -341,8 +257,6 @@ void drawScene(float deltaTime)
     drawWorld();
 
     drawRenderObjects();
-
-    drawText();
 
     if(con_isOpen())
         drawConsole();
@@ -391,9 +305,31 @@ GLuint loadImageIntoGL(const char* imageName)
     return imoprtMaterialIntoGL(width, height, imageData);
 }
 
-void setupRenderObjects()
+void addRenderObject(float x, float y, float z)
 {
-    
+    for (int i = 0; i < MAX_RENDER_OBJ; i++)
+    {
+        if (!renderObjects[i].isUsed)
+        {
+            renderObjects[i].isUsed = true;
+            renderObjects[i].model = findAsset(XASSET_MODEL, "assets\\models\\cube.model").XModel;
+            renderObjects[i].texture = loadMaterialIntoGL("assets\\materials\\cube_texture.bmp");
+
+            renderObjects[i].xPos = x;
+            renderObjects[i].yPos = y;
+            renderObjects[i].zPos = z;
+
+            renderObjects[i].xRot = 0.0f;
+            renderObjects[i].yRot = 0.0f;
+            renderObjects[i].zRot = 0.0f;
+
+            renderObjects[i].xScale = 1.0f;
+            renderObjects[i].yScale = 1.0f;
+            renderObjects[i].zScale = 1.0f;
+
+            return;
+        }
+    }
 }
 
 void setupWorld()
@@ -553,6 +489,4 @@ void initOpenGL()
     setupOpenGLSettings();
 
     setupWorld();
-
-    setupRenderObjects();
 }

@@ -30,6 +30,7 @@ struct XScript
 {
 	char* name;
 
+	int scrLen;
 	char* script;
 };
 

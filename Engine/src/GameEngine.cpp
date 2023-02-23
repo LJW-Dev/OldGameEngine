@@ -16,6 +16,11 @@
 //reinterpret_cast<>()
 //  telling compiler "trust me: I know this doesn't look like a foo, but it is"
 
+void initThreads()
+{
+    executeScript("assets\\scripts\\main.script");
+}
+
 void mainLoop()
 {
     double currentTime, deltaTime;
@@ -37,6 +42,8 @@ void mainLoop()
             updateInputs();
             updateCameraAngles(deltaTime);
         }
+
+        runCurrentThreads();
 
         updatePlayerPhysics(deltaTime);
 
@@ -69,6 +76,8 @@ int main()
     initOpenGL();
 
     initScriptVM();
+
+    initThreads();
 
     mainLoop();
 }
