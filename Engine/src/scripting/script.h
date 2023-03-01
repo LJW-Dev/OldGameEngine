@@ -1,5 +1,5 @@
 #pragma once
 
-void runCurrentThreads();
+void scr_runCurrentThreads();
 void executeScript(const char* scrName);
 void initScriptVM();

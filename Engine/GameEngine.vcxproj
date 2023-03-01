@@ -150,8 +150,7 @@
     <ClCompile Include="src\OpenGL.cpp" />
     <ClCompile Include="src\openGL\Compile\ShaderCompile.cpp" />
     <ClCompile Include="src\player\Player.cpp" />
-    <ClCompile Include="src\scripting\scripting.cpp" />
-    <ClCompile Include="src\scripting\script_execute.cpp" />
+    <ClCompile Include="src\scripting\script.cpp" />
     <ClCompile Include="src\utils\utils.cpp" />
     <ClCompile Include="src\window\Window.cpp" />
   </ItemGroup>

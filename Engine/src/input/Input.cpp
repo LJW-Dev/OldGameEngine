@@ -50,7 +50,6 @@ void updateInputs()
     getMousePos(&playerStruct.keyState.mouse_x, &playerStruct.keyState.mouse_y);
     setMousePos(WINDOW_X / 2, WINDOW_Y / 2);
     
-    
     lockInputBuffer = true;
 
     bool isConsoleOpen = con_isOpen();

@@ -16,11 +16,6 @@
 //reinterpret_cast<>()
 //  telling compiler "trust me: I know this doesn't look like a foo, but it is"
 
-void initThreads()
-{
-    executeScript("assets\\scripts\\main.script");
-}
-
 void mainLoop()
 {
     double currentTime, deltaTime;
@@ -43,7 +38,7 @@ void mainLoop()
             updateCameraAngles(deltaTime);
         }
 
-        runCurrentThreads();
+        scr_runCurrentThreads();
 
         updatePlayerPhysics(deltaTime);
 
@@ -55,6 +50,7 @@ void mainLoop()
 
     } // Check if the ESC key was pressed or the window was closed
     while (!shouldExitWindow());
+
 }
 
 int main()
@@ -77,7 +73,7 @@ int main()
 
     initScriptVM();
 
-    initThreads();
+    executeScript("assets\\scripts\\main.script");
 
     mainLoop();
 }

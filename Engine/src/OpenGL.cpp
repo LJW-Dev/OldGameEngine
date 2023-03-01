@@ -78,7 +78,7 @@ struct renderObject
     float zScale;
 };
 
-#define MAX_RENDER_OBJ 4
+#define MAX_RENDER_OBJ 30
 renderObject renderObjects[MAX_RENDER_OBJ];
 
 XFont* renderFont;

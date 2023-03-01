@@ -56,10 +56,7 @@
     <ClCompile Include="src\utils\utils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\scripting\scripting.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\scripting\script_execute.cpp">
+    <ClCompile Include="src\scripting\script.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

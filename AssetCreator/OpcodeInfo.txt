@@ -1,0 +1,60 @@
+﻿Opcode explanation:
+op_pushInt (integer)
+pushes an integer to the stack.
+
+op_pushFloat (float)
+pushes a float to the stack.
+
+op_jump (integer)
+jump backwards / forwards.
+
+op_callBuiltin (integer)
+calls a builtin function with the index of the integer.
+
+op_callScript (integer)
+calls a function defined in the script, with the integer being the distance in bytes that the function start is.
+
+op_wait
+pops a float from the stack and pauses execution for at least that long.
+use waits when using loops as it allows the VM to process other threads while the thread is paused.
+
+op_getVar (integer)
+gets the variable at the index of the integer and pushes it to the stack.
+
+op_setVar (integer)
+pops a var from the stack and sets the variable at the index of the integer to it.
+
+op_add
+adds 2 variables on the stack together and pushes the result to the stack.
+
+op_minus
+takes the second value on the stack from the first one and pushes the result to the stack.
+
+op_multiply
+multiplies 2 variables on the stack together and pushes the result to the stack.
+
+op_divide
+divides the second value on the stack from the first one and pushes the result to the stack.
+
+op_pushString (null terminated string)
+pushes a char* to the stack.
+
+op_end
+finishes execution of the current thread.
+
+Script example:
+
+
+eee2(eee)
+{
+	wait 0.05;
+	debugPrint(eee);
+	debugPrint("test 123");
+}
+
+main eee() // the initial function uses main
+{
+	var1 = 697;
+	debugPrint(69696.27); //builtin call
+	eee2(var1); // script call
+}

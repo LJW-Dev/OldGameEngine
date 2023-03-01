@@ -37,30 +37,37 @@ void con_setState(bool isOpen)
 void con_executeCommand()
 {
 	int secondWordPos = 0;
-	while (console_s.consoleBuffer[secondWordPos] != ' ')
+	while (console_s.consoleBuffer[secondWordPos] != ' ' && console_s.conBufferPos > secondWordPos)
 		secondWordPos++;
 
-	console_s.consoleBuffer[secondWordPos] = '\0';
-	secondWordPos++;
-	char* secondWord = &console_s.consoleBuffer[secondWordPos];
-
-	s_dvar* dvar = dvar_findVar(console_s.consoleBuffer);
-
-	if (dvar != NULL)
+	if (console_s.conBufferPos == secondWordPos) //ony one word, so must be a function
 	{
-		switch (dvar_getType(dvar))
+		// will implement!
+	}
+	else
+	{
+		console_s.consoleBuffer[secondWordPos] = '\0';
+		secondWordPos++;
+		char* secondWord = &console_s.consoleBuffer[secondWordPos];
+
+		s_dvar* dvar = dvar_findVar(console_s.consoleBuffer);
+
+		if (dvar != NULL)
 		{
-		case DVAR_BOOL:
-			dvar_setBool(dvar, atol(secondWord) != 0);
-			break;
+			switch (dvar_getType(dvar))
+			{
+			case DVAR_BOOL:
+				dvar_setBool(dvar, atol(secondWord) != 0);
+				break;
 
-		case DVAR_FLOAT:
-			dvar_setFloat(dvar, atof(secondWord));
-			break;
+			case DVAR_FLOAT:
+				dvar_setFloat(dvar, atof(secondWord));
+				break;
 
-		case DVAR_INTEGER:
-			dvar_setInt(dvar, atol(secondWord));
-			break;
+			case DVAR_INTEGER:
+				dvar_setInt(dvar, atol(secondWord));
+				break;
+			}
 		}
 	}
 }
