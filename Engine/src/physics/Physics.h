@@ -3,8 +3,6 @@
 #include <glm/glm.hpp>
 using namespace glm;
 
-#include "src\OpenGL.h"
-
 #define phys_gravity 2.0f
 #define phys_friction 20.0f
 

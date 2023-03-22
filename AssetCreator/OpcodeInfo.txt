@@ -5,11 +5,11 @@ pushes an integer to the stack.
 op_pushFloat (float)
 pushes a float to the stack.
 
-op_jump (integer)
+op_Jump (integer)
 jump backwards / forwards.
 
 op_callBuiltin (integer)
-calls a builtin function with the index of the integer.
+calls a builtin function with the hash of the integer.
 
 op_callScript (integer)
 calls a function defined in the script, with the integer being the distance in bytes that the function start is.

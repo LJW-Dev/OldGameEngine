@@ -142,33 +142,55 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\assetDB\AssetDB.cpp" />
+    <ClCompile Include="src\commands\commands.cpp" />
     <ClCompile Include="src\console\Console.cpp" />
+    <ClCompile Include="src\debug\debug.cpp" />
     <ClCompile Include="src\dvar\dvar.cpp" />
+    <ClCompile Include="src\dvar\dvar_list.cpp" />
+    <ClCompile Include="src\entity\Entity.cpp" />
+    <ClCompile Include="src\error\error.cpp" />
     <ClCompile Include="src\input\Input.cpp" />
+    <ClCompile Include="src\input\keyboard.cpp" />
+    <ClCompile Include="src\openGL\OpenGL_Draw.cpp" />
+    <ClCompile Include="src\openGL\OpenGL_Import.cpp" />
     <ClCompile Include="src\physics\Physics.cpp" />
     <ClCompile Include="src\GameEngine.cpp" />
-    <ClCompile Include="src\OpenGL.cpp" />
+    <ClCompile Include="src\openGL\OpenGL.cpp" />
     <ClCompile Include="src\openGL\Compile\ShaderCompile.cpp" />
     <ClCompile Include="src\player\Player.cpp" />
     <ClCompile Include="src\scripting\script.cpp" />
-    <ClCompile Include="src\utils\utils.cpp" />
+    <ClCompile Include="src\scripting\script_func.cpp" />
+    <ClCompile Include="src\utils\time.cpp" />
+    <ClCompile Include="src\window\utils\utils.cpp" />
     <ClCompile Include="src\window\Window.cpp" />
+    <ClCompile Include="src\window\window_callback.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\assetDB\AssetDB.h" />
+    <ClInclude Include="src\commands\commands.h" />
     <ClInclude Include="src\console\Console.h" />
+    <ClInclude Include="src\debug\debug.h" />
     <ClInclude Include="src\dvar\dvar.h" />
+    <ClInclude Include="src\dvar\dvar_list.h" />
+    <ClInclude Include="src\entity\Entity.h" />
+    <ClInclude Include="src\error\error.h" />
+    <ClInclude Include="src\input\keyboard.h" />
+    <ClInclude Include="src\openGL\OpenGL_Draw.h" />
+    <ClInclude Include="src\openGL\OpenGL_Import.h" />
     <ClInclude Include="src\scripting\script.h" />
+    <ClInclude Include="src\scripting\script_func.h" />
     <ClInclude Include="src\utils\Math.h" />
     <ClInclude Include="src\input\Input.h" />
     <ClInclude Include="src\physics\Physics.h" />
-    <ClInclude Include="src\OpenGL.h" />
+    <ClInclude Include="src\openGL\OpenGL.h" />
     <ClInclude Include="src\openGL\Compile\ShaderCompile.h" />
     <ClInclude Include="src\openGL\Compile\StandardOpenGL.h" />
     <ClInclude Include="src\external\stb_image.h" />
     <ClInclude Include="src\player\Player.h" />
-    <ClInclude Include="src\utils\utils.h" />
+    <ClInclude Include="src\utils\time.h" />
+    <ClInclude Include="src\window\utils\utils.h" />
     <ClInclude Include="src\window\Window.h" />
+    <ClInclude Include="src\window\window_callback.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\Colour_FragmentShader.fragmentshader">

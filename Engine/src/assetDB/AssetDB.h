@@ -31,6 +31,7 @@ struct XScript
 	char* name;
 
 	int scrLen;
+	int mainFuncPtr;
 	char* script;
 };
 
@@ -41,12 +42,14 @@ struct XMaterial
 	int width;
 	int height;
 	unsigned char* imageData;
+
+	int openGLTexture;
 };
 
 struct XFont
 {
 	char* name;
-	int texture;
+	XMaterial* texture;
 	
 	int lettersPerLine;
 	int glyphHeight;

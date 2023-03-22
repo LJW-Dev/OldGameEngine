@@ -19,6 +19,9 @@ struct s_playerRenderInfo
 {
     glm::mat4 projectionMatrix;
     glm::mat4 viewMatrix;
+
+    glm::mat4 ViewProjectionMatrix;
+
     float FOV;
     float aspectRatio;
     float near;

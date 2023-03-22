@@ -1,19 +1,8 @@
-#include "src\openGL\compile\StandardOpenGL.h"
-#include "src\openGL\compile\ShaderCompile.h"
-#include "src\window\Window.h"
-#include "src\assetDB\AssetDB.h"
-#include "src\OpenGL.h"
-#include "src\physics\Physics.h"
-#include "src/console/Console.h"
-
+#include "OpenGL_Draw.h"
+#include "src/openGL/Compile/ShaderCompile.h"
 #include "src/player/Player.h"
 
-#include <math.h>
-
 #include <vector>
-
-//#define STB_IMAGE_IMPLEMENTATION
-#include "src\external\stb_image.h"
 
 struct shader_textureInfo
 {
@@ -58,32 +47,6 @@ struct shader_colourInfo
 shader_textureInfo shaderTextureInfo;
 shader_textInfo shaderTextInfo;
 shader_colourInfo shaderColourInfo;
-
-struct renderObject
-{
-    bool isUsed;
-
-    XModel* model;
-    GLuint texture;
-    float xPos;
-    float yPos;
-    float zPos;
-
-    float xRot;
-    float yRot;
-    float zRot;
-
-    float xScale;
-    float yScale;
-    float zScale;
-};
-
-#define MAX_RENDER_OBJ 30
-renderObject renderObjects[MAX_RENDER_OBJ];
-
-XFont* renderFont;
-XworldObject* worldObj;
-
 
 void draw2D(GLuint texture, void* verts, int vertSize, int vertexCount, void* UVs, int UVSize)
 {
@@ -135,20 +98,19 @@ void drawImage2D(GLuint texture, int x, int y, int size)
     draw2D(texture, &vertices[0], vertices.size() * sizeof(glm::vec2), vertices.size(), &UVs[0], UVs.size() * sizeof(glm::vec2));
 }
 
-void printText2D(const char* text, int x, int y, int size)
+void printText2D(XFont* font, const char* text, int x, int y, int size)
 {
     if (text[0] == '\x0')
         return;
 
-    
     std::vector<glm::vec2> vertices;
     std::vector<glm::vec2> UVs;
 
     for (int i = 0; text[i] != '\x00'; i++)
     {
-        char glyphWidth = renderFont->glyphWidthArray[text[i]];
-        float charWidth = float(glyphWidth) / (renderFont->glyphWidth * renderFont->lettersPerLine);
-        float charHeight = 1.0f / renderFont->lettersPerLine;
+        char glyphWidth = font->glyphWidthArray[text[i]];
+        float charWidth = float(glyphWidth) / (font->glyphWidth * font->lettersPerLine);
+        float charHeight = 1.0f / font->lettersPerLine;
 
         int xsize = glyphWidth;
 
@@ -165,11 +127,11 @@ void printText2D(const char* text, int x, int y, int size)
         vertices.push_back(vertex_up_right);
         vertices.push_back(vertex_down_left);
 
-        int line_x = text[i] % renderFont->lettersPerLine;
-        int line_y = text[i] / renderFont->lettersPerLine;
+        int line_x = text[i] % font->lettersPerLine;
+        int line_y = text[i] / font->lettersPerLine;
 
-        float uv_x = float(line_x) / renderFont->lettersPerLine;
-        float uv_y = float(line_y) / renderFont->lettersPerLine;
+        float uv_x = float(line_x) / font->lettersPerLine;
+        float uv_y = float(line_y) / font->lettersPerLine;
 
         glm::vec2 uv_up_left = glm::vec2(uv_x, uv_y);
         glm::vec2 uv_up_right = glm::vec2(uv_x + charWidth, uv_y);
@@ -185,18 +147,16 @@ void printText2D(const char* text, int x, int y, int size)
         UVs.push_back(uv_down_left);
     }
 
-    draw2D(renderFont->texture, &vertices[0], vertices.size() * sizeof(glm::vec2), vertices.size(), &UVs[0], UVs.size() * sizeof(glm::vec2));
+    draw2D(font->texture->openGLTexture, &vertices[0], vertices.size() * sizeof(glm::vec2), vertices.size(), &UVs[0], UVs.size() * sizeof(glm::vec2));
 }
 
-void drawWorld()
+void drawWorld(XworldObject* worldObj)
 {
     glUseProgram(shaderTextureInfo.shaderID);
 
-    glm::mat4 MVP = playerStruct.renderInfo.projectionMatrix * playerStruct.renderInfo.viewMatrix;
+    glUniformMatrix4fv(shaderTextureInfo.uniform_MVP, 1, GL_FALSE, &playerStruct.renderInfo.ViewProjectionMatrix[0][0]);
 
-    glUniformMatrix4fv(shaderTextureInfo.uniform_MVP, 1, GL_FALSE, &MVP[0][0]);
-
-    for (int i = 0; i < worldObj->numObjs; i++)
+    for (int i = 0; i < worldObj->numObjs; i++) 
     {
         glBindTexture(GL_TEXTURE_2D, worldObj->objTextureArray[i]);
 
@@ -210,132 +170,61 @@ void drawWorld()
     }
 }
 
-void drawRenderObjects()
+void drawObject(float x, float y, float z, float rotX, float rotY, float rotZ, XModel* model, XMaterial* material)
+{
+    glUseProgram(shaderTextureInfo.shaderID);
+    
+    glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(x, y, z));
+    glm::mat4 MVP = playerStruct.renderInfo.ViewProjectionMatrix * translationMatrix;
+
+    // Send our transformation to the currently bound shader, in the "MVP" uniform
+    // This is done in the main loop since each model will have a different MVP matrix (At least for the M part)
+    glUniformMatrix4fv(shaderTextureInfo.uniform_MVP, 1, GL_FALSE, &MVP[0][0]);
+
+    glBindTexture(GL_TEXTURE_2D, material->openGLTexture);
+
+    glBindBuffer(GL_ARRAY_BUFFER, shaderTextureInfo.vertexBuffer);
+    glBufferData(GL_ARRAY_BUFFER, model->vertexCount * sizeof(float), model->vertexes, GL_STATIC_DRAW); //size is num of bytes
+
+    glBindBuffer(GL_ARRAY_BUFFER, shaderTextureInfo.UVBuffer);
+    glBufferData(GL_ARRAY_BUFFER, model->UVCount * sizeof(float), model->UVs, GL_STATIC_DRAW); //size is num of bytes
+
+    glDrawArrays(GL_TRIANGLES, 0, model->vertexCount / 3);  //indecies are an xyz point in space, so div by 3 as vertexCount is a count of floats in the array
+}
+
+void drawEntities(entityInfo* entArray)
 {
     glUseProgram(shaderTextureInfo.shaderID);
 
-    for (const renderObject& object : renderObjects)
+    for (int i = 0; i < MAX_ENTITIES; i++)
     {
-        if (!object.isUsed)
+        entityInfo ent = entArray[i];
+
+        if (!ent.isUsed)
             continue;
 
-        glm::mat4 myScalingMatrix = glm::scale(glm::vec3(object.xScale, object.yScale, object.zScale));
+        glm::vec3 entPos = glm::vec3(ent.xPos, ent.yPos, ent.zPos);
 
-        glm::vec3 myRotationAxis(0.0f, 1.0f, 0.0f);
-
-        glm::mat4 myTranslationMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(object.xPos, object.yPos, object.zPos));
-        //glm::mat4 Model = myTranslationMatrix * myRotationMatrix * myScalingMatrix;
-        glm::mat4 Model = myTranslationMatrix * myScalingMatrix;
-        glm::mat4 MVP = playerStruct.renderInfo.projectionMatrix * playerStruct.renderInfo.viewMatrix * Model;
+        glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f), entPos);
+        glm::mat4 rotationnMatrix = glm::rotate(glm::mat4(1.0f), 3.0f, entPos);
+        
+        glm::mat4 Model = translationMatrix * rotationnMatrix;
+        glm::mat4 MVP = playerStruct.renderInfo.ViewProjectionMatrix * Model;
 
         // Send our transformation to the currently bound shader, in the "MVP" uniform
         // This is done in the main loop since each model will have a different MVP matrix (At least for the M part)
         glUniformMatrix4fv(shaderTextureInfo.uniform_MVP, 1, GL_FALSE, &MVP[0][0]);
 
-        glBindTexture(GL_TEXTURE_2D, object.texture);
+        glBindTexture(GL_TEXTURE_2D, ent.texture);
 
         glBindBuffer(GL_ARRAY_BUFFER, shaderTextureInfo.vertexBuffer);
-        glBufferData(GL_ARRAY_BUFFER, object.model->vertexCount * sizeof(float), object.model->vertexes, GL_STATIC_DRAW); //size is num of bytes
+        glBufferData(GL_ARRAY_BUFFER, ent.model->vertexCount * sizeof(float), ent.model->vertexes, GL_STATIC_DRAW); //size is num of bytes
 
         glBindBuffer(GL_ARRAY_BUFFER, shaderTextureInfo.UVBuffer);
-        glBufferData(GL_ARRAY_BUFFER, object.model->UVCount * sizeof(float), object.model->UVs, GL_STATIC_DRAW); //size is num of bytes
+        glBufferData(GL_ARRAY_BUFFER, ent.model->UVCount * sizeof(float), ent.model->UVs, GL_STATIC_DRAW); //size is num of bytes
 
-        glDrawArrays(GL_TRIANGLES, 0, object.model->vertexCount / 3);  //indecies are an xyz point in space, so div by 3 as vertexCount is a count of floats in the array
+        glDrawArrays(GL_TRIANGLES, 0, ent.model->vertexCount / 3);  //indecies are an xyz point in space, so div by 3 as vertexCount is a count of floats in the array
     }
-}
-
-//double lastTime = 0;
-void drawScene(float deltaTime)
-{
-    // Clear the screen
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    char buffer[100];
-    sprintf_s(buffer, "DELTATIME %f", deltaTime);
-    printText2D(buffer, 0, 50, 40);
-
-    drawWorld();
-
-    drawRenderObjects();
-
-    if(con_isOpen())
-        drawConsole();
-}
-
-GLuint imoprtMaterialIntoGL(int width, int height, unsigned char* data)
-{
-    GLuint textureID;
-    glGenTextures(1, &textureID);
-
-    // "Bind" the newly created texture : all future texture functions will modify this texture
-    glBindTexture(GL_TEXTURE_2D, textureID);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    //glGenerateMipmap(GL_TEXTURE_2D);
-
-    // Return the ID of the texture we just created
-    return textureID;
-}
-
-GLuint loadMaterialIntoGL(const char* materialName) 
-{
-    XMaterial* material = findAsset(XASSET_MATERIAL, materialName).XMaterial;
-    if (material == NULL)
-    {
-        printf("Material not found!\n");
-        return -1;
-    }
-
-    return imoprtMaterialIntoGL(material->width, material->height, material->imageData);
-}
-
-GLuint loadImageIntoGL(const char* imageName)
-{
-    int width;
-    int height;
-    int channels;
-
-    unsigned char* imageData = stbi_load(imageName, &width, &height, &channels, 0);
-
-    return imoprtMaterialIntoGL(width, height, imageData);
-}
-
-void addRenderObject(float x, float y, float z)
-{
-    for (int i = 0; i < MAX_RENDER_OBJ; i++)
-    {
-        if (!renderObjects[i].isUsed)
-        {
-            renderObjects[i].isUsed = true;
-            renderObjects[i].model = findAsset(XASSET_MODEL, "assets\\models\\cube.model").XModel;
-            renderObjects[i].texture = loadMaterialIntoGL("assets\\materials\\cube_texture.bmp");
-
-            renderObjects[i].xPos = x;
-            renderObjects[i].yPos = y;
-            renderObjects[i].zPos = z;
-
-            renderObjects[i].xRot = 0.0f;
-            renderObjects[i].yRot = 0.0f;
-            renderObjects[i].zRot = 0.0f;
-
-            renderObjects[i].xScale = 1.0f;
-            renderObjects[i].yScale = 1.0f;
-            renderObjects[i].zScale = 1.0f;
-
-            return;
-        }
-    }
-}
-
-void setupWorld()
-{
-    renderFont = findAsset(XASSET_FONT, "assets\\fonts\\font.bin").XFont;
-    worldObj = findAsset(XASSET_WORLD, "assets\\world\\world.model").World;
 }
 
 void setupOpenGLTextureShaders()
@@ -373,6 +262,7 @@ void setupOpenGLTextureShaders()
     glEnableVertexAttribArray(1);
     glBindBuffer(GL_ARRAY_BUFFER, shaderTextureInfo.UVBuffer);
     glVertexAttribPointer(
+
         shaderTextureInfo.UVBufferIndex,
         2,                                // size : U+V => 2
         GL_FLOAT,                         // type
@@ -401,11 +291,11 @@ void setupOpenGLTextShaders()
     glEnableVertexAttribArray(shaderTextInfo.vertexBufferIndex);
     glBindBuffer(GL_ARRAY_BUFFER, shaderTextInfo.vertexBuffer);
     glVertexAttribPointer(
-        shaderTextInfo.vertexBufferIndex, 
+        shaderTextInfo.vertexBufferIndex,
         2, // 2 as only x,y
-        GL_FLOAT, 
-        GL_FALSE, 
-        0, 
+        GL_FLOAT,
+        GL_FALSE,
+        0,
         NULL);
 
     // 2nd attribute buffer : UVs
@@ -416,7 +306,7 @@ void setupOpenGLTextShaders()
         2,
         GL_FLOAT,
         GL_FALSE,
-        0, 
+        0,
         NULL);
 }
 
@@ -424,7 +314,7 @@ void setupOpenGLColourShaders()
 {
     shaderColourInfo.vertexBufferIndex = 4;
     shaderColourInfo.colourBufferIndex = 5;
-    
+
     glGenBuffers(1, &shaderColourInfo.vertexBuffer);
     glGenBuffers(1, &shaderColourInfo.colourBuffer);
 
@@ -465,28 +355,4 @@ void setupShaders()
     setupOpenGLColourShaders();
 
     setupOpenGLTextShaders();
-}
-
-void setupOpenGLSettings()
-{
-    glEnable(GL_DEPTH_TEST); // Enable depth test
-    glDepthFunc(GL_LESS); // Accept fragment if it closer to the camera than the former one
-    glEnable(GL_CULL_FACE); // Cull triangles which normal is not towards the camera
-
-    //Turn on wireframe
-    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
-    //turn off wireframe
-    //glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-}
-
-
-
-void initOpenGL()
-{
-    setupShaders();
-
-    setupOpenGLSettings();
-
-    setupWorld();
 }

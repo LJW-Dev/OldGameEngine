@@ -5,7 +5,7 @@
 #include "src\external\stb_image.h"
 
 #include "src\assetDB\AssetDB.h"
-#include "src\OpenGL.h"
+#include "src\openGL\OpenGL_Import.h"
 
 XFont s_XFontPool[ASSET_MAX];
 XModel s_XModelPool[ASSET_MAX];
@@ -137,7 +137,7 @@ void load_XFont(FILE* file, char* name)
 
 	char matName[MAX_ASSET_NAME_LEN];
 	readNullTermString(file, matName);
-	header->texture = loadImageIntoGL(matName);
+	header->texture = findAsset(XASSET_MATERIAL, matName).XMaterial;
 
 	fread_s(&header->lettersPerLine, sizeof(int), sizeof(int), 1, file);
 	fread_s(&header->glyphHeight, sizeof(int), sizeof(int), 1, file);
@@ -158,6 +158,7 @@ void load_XMaterial(FILE* file, char* name)
 
 	int channels;
 	matHeader->imageData = stbi_load_from_file(file, &matHeader->width, &matHeader->height, &channels, 0);
+	matHeader->openGLTexture = imoprtTextureIntoGL(matHeader->width, matHeader->height, matHeader->imageData);
 }
 
 void load_WorldObject(FILE* file, char* name)
@@ -182,7 +183,7 @@ void load_WorldObject(FILE* file, char* name)
 	for (int i = 0; i < header->numObjs; i++)
 	{
 		readNullTermString(file, nameBuffer);
-		header->objTextureArray[i] = loadImageIntoGL(nameBuffer);
+		header->objTextureArray[i] = loadDiskImageIntoGL(nameBuffer);
 
 		int vertexCount;
 		int UVCount;
@@ -233,13 +234,11 @@ void load_XScript(FILE* file, char* name)
 
 	header->name = name;
 
-	fseek(file, 0, SEEK_END);
-	long len = ftell(file);
-	fseek(file, 0, SEEK_SET);
+	fread_s(&header->scrLen, sizeof(header->scrLen), sizeof(header->scrLen), 1, file);
+	fread_s(&header->mainFuncPtr, sizeof(header->mainFuncPtr), sizeof(header->mainFuncPtr), 1, file);
 
-	header->scrLen = len;
-	header->script = new char[len];
-	fread_s(header->script, len, sizeof(char), len, file);
+	header->script = new char[header->scrLen];
+	fread_s(header->script, header->scrLen, sizeof(char), header->scrLen, file);
 }
 
 void loadAsset(xAssetType type, char* assetName)

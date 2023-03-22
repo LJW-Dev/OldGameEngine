@@ -1,6 +1,5 @@
 #include "src\physics\Physics.h"
 #include "src\assetDB\AssetDB.h"
-#include "src\OpenGL.h"
 
 #include "src/player/player.h"
 

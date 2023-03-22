@@ -16,6 +16,16 @@ namespace AssetCompiler
     {
         private scriptInfo script = new scriptInfo();
 
+        uint hashString(string value) // djb2 hashing algorithm http://www.cse.yorku.ca/~oz/hash.html
+        {
+            ulong hash = 5381;
+
+            foreach (char c in value)
+                hash = ((hash << 5) + hash) + c;
+
+            return (uint)(hash & 0xFFFFFFFF);
+        }
+
         void emitOpcode(OpcodeList opcode)
         {
             script.emitByte((byte)opcode);
@@ -94,29 +104,36 @@ namespace AssetCompiler
                 return false;
         }
 
-        void emitBuiltinCall(string name, int paramCount)
+        bool emitBuiltinCall(string name, int paramCount)
         {
+            if (!isCallBuiltin(name))
+                return false;
+
             emitOpcode(OpcodeList.op_callBuiltin);
-            script.emitInt(BuiltinList.IndexOf(name));
+            script.emitUInt(hashString(name));
+
+            return true;
         }
 
-        void emitLocalCall(string name, int paramCount)
+        bool emitLocalCall(string name, int paramCount)
         {
+            if (!isCallLocal(name))
+                return false;
+
             emitOpcode(OpcodeList.op_callScript);
-            script.emitByte((byte)paramCount);
             script.emitInt(script.getFunction(name).bytecodeStart - script.getScriptPos());
+
+            return true;
         }
 
         void emitCall(ParseTreeNode node)
         {
-            int paramCount = parseParamList(node.ChildNodes[1]);
+            //TODO: check param count matches
 
             string callName = node.ChildNodes[0].Token.ValueString;
-            if (isCallBuiltin(callName))
-                emitBuiltinCall(callName, paramCount);
-            else if (isCallLocal(callName))
-                emitLocalCall(callName, paramCount);
-            else
+            int paramCount = parseParamList(node.ChildNodes[1]);
+            
+            if(!emitBuiltinCall(callName, paramCount) && !emitLocalCall(callName, paramCount))
                 throw new Exception(String.Format("Function {0} does not exist!", callName));
         }
 
@@ -215,6 +232,15 @@ namespace AssetCompiler
                 script.currFunc.addLocalVar(param.Token.ValueString);
             }
 
+            if(funcParamsList.ChildNodes.Count > 0) 
+            {
+                if (shouldAutoExecute)
+                    throw new Exception("Main function cannot have parameters.");
+
+                emitOpcode(OpcodeList.op_popParams);
+                script.emitByte((byte)funcParamsList.ChildNodes.Count);
+            }
+
             ParseTreeNode codeLineList = node.ChildNodes[2];
             foreach (ParseTreeNode line in codeLineList.ChildNodes)
             {
@@ -246,27 +272,16 @@ namespace AssetCompiler
             if (tree.ParserMessages.Count > 0)
             {
                 int errorLoc = tree.ParserMessages[0].Location.Line + 1;
-                Console.WriteLine("ERROR: Bad syntax in line " + errorLoc + ".");
+                Console.WriteLine("ERROR: Bad syntax in line " + errorLoc);
                 return false;
             }
-
-            int autoExecFuncPos = script.getScriptPos();
-            script.emitInt(0); // will be overwritten later
 
             foreach (ParseTreeNode node in tree.Root.ChildNodes)
             {
                 parseFunctionNode(node);
             }
-
-            if (script.doesFunctionExist(script.autoExecuteFunction))
-            {
-                int byteCodeStart = script.getFunction(script.autoExecuteFunction).bytecodeStart;
-                script.replaceBytes(autoExecFuncPos, BitConverter.GetBytes(byteCodeStart));
-            }
-                
-            else
-                throw new Exception("Script must have at least one main function!");
-            
+        
+            script.writeHeader();
 
             File.WriteAllBytes(outPath, script.getCompiledScript());
 
@@ -288,9 +303,9 @@ namespace AssetCompiler
             op_multiply,
             op_divide,
             op_pushString,
+            op_popParams,
             op_end
         };
-            
 
         List<string> BuiltinList = new List<string>{
             "spawnCube",
@@ -303,7 +318,14 @@ namespace AssetCompiler
             private Dictionary<string, functionInfo> functionDict = new Dictionary<string, functionInfo>(); // Key: name
 
             public functionInfo currFunc;
-            public string autoExecuteFunction = "";
+            private string mainFunction = String.Empty;
+
+            public scriptInfo()
+            {
+                // Init header, will be overwritten later
+                emitInt(0); // script size
+                emitInt(0); // auto exec pos
+            }
 
             public int getScriptPos()
             {
@@ -326,6 +348,11 @@ namespace AssetCompiler
                 compiledScript.AddRange(BitConverter.GetBytes(val));
             }
 
+            public void emitUInt(uint val)
+            {
+                compiledScript.AddRange(BitConverter.GetBytes(val));
+            }
+
             public void emitFloat(float val)
             {
                 compiledScript.AddRange(BitConverter.GetBytes(val));
@@ -334,6 +361,11 @@ namespace AssetCompiler
             public void emitString(string val)
             {
                 compiledScript.AddRange(Encoding.ASCII.GetBytes(val + '\0'));
+            }
+
+            private bool doesHaveMainFunction()
+            {
+                return mainFunction != String.Empty;
             }
 
             public functionInfo getFunction(string name)
@@ -350,11 +382,10 @@ namespace AssetCompiler
             {
                 if (autoExecute)
                 {
-                    if (autoExecuteFunction.Equals(""))
-                        autoExecuteFunction = name;
-                    else
+                    if (doesHaveMainFunction())
                         throw new Exception("More than one main function!");
 
+                    mainFunction = name;
                 }
 
                 functionDict.Add(name, new functionInfo(getScriptPos()));
@@ -364,6 +395,17 @@ namespace AssetCompiler
             public byte[] getCompiledScript()
             {
                 return compiledScript.ToArray();
+            }
+
+            private readonly int HEADER_SIZE = 8;
+
+            public void writeHeader()
+            {
+                if (!doesHaveMainFunction())
+                    throw new Exception("Script must have at least one main function!");
+
+                replaceBytes(0, BitConverter.GetBytes(getScriptPos() - HEADER_SIZE));
+                replaceBytes(4, BitConverter.GetBytes(getFunction(mainFunction).bytecodeStart - HEADER_SIZE));
             }
         }
 

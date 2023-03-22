@@ -1,14 +1,20 @@
 #include "src\openGL\compile\StandardOpenGL.h"
 
 #include "src\window\Window.h"
-#include "src\OpenGL.h" 
+#include "src\openGL\OpenGL.h" 
+#include "src\openGL\OpenGL_Draw.h" 
 #include "src\assetDB\AssetDB.h"
 #include "src\physics\Physics.h"
 #include "src/input/Input.h"
-#include "src/dvar/dvar.h"
+
 #include "src/player/player.h"
 #include "src/console/Console.h"
 #include "src/scripting/script.h"
+
+#include "src/dvar/dvar_list.h"
+#include "src/debug/debug.h"
+
+#include "src/error/error.h"
 
 //static_cast<>()
 //  checked safe conversion between types
@@ -18,44 +24,27 @@
 
 void mainLoop()
 {
-    double currentTime, deltaTime;
-    double lastTime = glfwGetTime();
-
-    do 
+    while (!shouldExitWindow())
     {
-        currentTime = glfwGetTime();
-
-        if (dvar_getBool(sv_overrideTimestep))
-            deltaTime = dvar_getFloat(sv_timestep);
-        else
-            deltaTime = float(currentTime - lastTime);
-
-        lastTime = currentTime;
+        float deltaTime = startFrame();
 
         if (isWindowFocused())
         {
             updateInputs();
             updateCameraAngles(deltaTime);
         }
-
+        
         scr_runCurrentThreads();
 
         updatePlayerPhysics(deltaTime);
 
-        updateViewMatrix();
-
-        drawScene(deltaTime);
-
-        swapBuffersAndPoll();
-
-    } // Check if the ESC key was pressed or the window was closed
-    while (!shouldExitWindow());
-
+        endFrame();
+    }
 }
 
 int main()
 {
-    std::cout << "Hello World!\n";
+    printf("Hello World!\n");
 
     initDvars();
 
@@ -73,7 +62,13 @@ int main()
 
     initScriptVM();
 
+    initDebug();
+
     executeScript("assets\\scripts\\main.script");
 
-    mainLoop();
+    if (setjmp(mainErrorBuf) == 0)
+        mainLoop();
+
+    printf("Execution finished\n");
+    return 0;
 }

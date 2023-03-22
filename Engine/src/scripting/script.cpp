@@ -1,137 +1,133 @@
 #include "src/assetDB/AssetDB.h"
+#include "script.h"
+#include "script_func.h"
+#include "src/error/error.h"
 
-#include <GLFW/glfw3.h>
-
-#include "src/OpenGL.h"
-
-#include <string.h>
-
-enum e_scriptVarType
-{
-	SCRIPT_INTEGER,
-	SCRIPT_FLOAT,
-	SCRIPT_STRING
-};
-
-union u_scriptVarVal
-{
-	char* t_str;
-	int t_int;
-	float t_float;
-};
-
-struct s_scriptVar
-{
-	e_scriptVarType type;
-	u_scriptVarVal val;
-};
+#include "src/utils/time.h"
+#include <string>
 
 #define SCR_MAX_VARS 20
+#define SCR_MAX_STACK 10
+#define SCR_MAX_CALLS 20
+#define SCR_MAX_THREADS 10
 
 struct localFunction
 {
-	char* funcStart;
-
-	char* subCallJumpBack;
-
 	s_scriptVar vars[SCR_MAX_VARS];
-};
 
-#define SCR_MAX_STACK 10
-#define SCR_MAX_CALLS 20
+	char* callReturnPos;
+};
 
 struct scrThreadInfo
 {
 	bool isThreadActive;
-	bool isThreadPaused;
-
 	char* scriptPos;
 
 	s_scriptVar* freeStack;
 	s_scriptVar* maxStack;
 	s_scriptVar stack[SCR_MAX_STACK];
-	
-	double waitStart;
-	double waitTime;
 
 	localFunction* currFunc;
 	localFunction* maxFunc;
 	localFunction functionStack[SCR_MAX_CALLS];
-};
 
-#define SCR_MAX_THREADS 10
+	bool isThreadPaused;
+	double pauseStart;
+	double pauseTime;
+
+	char callParamCount;
+};
 
 struct scriptVM
 {
+	int currThreadNum;
 	scrThreadInfo* currThread;
-	scrThreadInfo* maxThread;
 	scrThreadInfo threads[SCR_MAX_THREADS];
 };
 
 scriptVM scrVM;
 
-void (*scriptFuncArray[])();
-void (*opcodeFuncArray[])();
-
 void scr_killCurrThread()
 {
-	printf("Thread killed");
+	printf("Thread %i killed\n", scrVM.currThreadNum);
 	scrVM.currThread->isThreadActive = false;
 }
 
-void scr_error(const char* msg)
+void scr_error(const char* msg, bool isTerminalError)
 {
-	printf("scr_error: %s", msg);
 	scr_killCurrThread();
+
+	if (isTerminalError)
+		error_exit("Script Error: %s", msg);
+	else
+		error_noexit("Script Error: %s", msg);
+}
+
+void scr_stackCheck()
+{
+	if (scrVM.currThread->freeStack > scrVM.currThread->maxStack)
+	{
+		scr_error("Max stack reached!", true);
+		return;
+	}
+	else if (scrVM.currThread->freeStack < scrVM.currThread->stack)
+	{
+		scr_error("Min stack reached!", true);
+	}
 }
 
 void scr_pushToStack(s_scriptVar data)
 {
-	if (scrVM.currThread->freeStack > scrVM.currThread->maxStack)
-	{
-		scr_error("Max stack reached!");
-		return;
-	}
-
+	scr_stackCheck();
+	
 	scrVM.currThread->freeStack->type = data.type;
 	scrVM.currThread->freeStack->val = data.val;
-
 	scrVM.currThread->freeStack++;
 }
 
 s_scriptVar scr_popFromStack()
 {
-	if (scrVM.currThread->freeStack < scrVM.currThread->stack)
-	{
-		scr_error("Min stack reached!");
-		return *scrVM.currThread->stack;
-	}
+	scr_stackCheck();
 
 	scrVM.currThread->freeStack--;
 	return *scrVM.currThread->freeStack;
 }
 
-void scr_addVarsFromStack(int count)
-{
-	for (int i = 0; i < count; i++)
-	{
-		scrVM.currThread->currFunc->vars[i] = scr_popFromStack();
-	}
-}
-
-s_scriptVar scr_getVar()
+s_scriptVar scr_popVar()
 {
 	return scr_popFromStack();
 }
 
-int scr_getInteger()
+int scr_popInteger()
 {
 	return scr_popFromStack().val.t_int;
 }
 
-float scr_getFloat()
+float scr_popFloat()
 {
 	return scr_popFromStack().val.t_float;
+}
+
+char* scr_popString()
+{
+	return scr_popFromStack().val.t_str;
+}
+
+void scr_setVar(int index, s_scriptVar val)
+{
+	if (index > (SCR_MAX_VARS - 1))
+		scr_error("scr_setVar index greater than (SCR_MAX_VARS - 1)", true);
+
+	scrVM.currThread->currFunc->vars[index].type = val.type;
+	scrVM.currThread->currFunc->vars[index].val = val.val;
+}
+
+s_scriptVar scr_getVar(int index)
+{
+	if (index > (SCR_MAX_VARS - 1))
+		scr_error("scr_getVar index greater than (SCR_MAX_VARS - 1)", true);
+
+	return scrVM.currThread->currFunc->vars[index];
 }
 
 int scr_peekInteger()
@@ -201,26 +197,38 @@ void op_jump()
 
 void op_callBuiltin()
 {
-	scriptFuncArray[scr_readInteger()]();
+	scrFuncArray[scr_readInteger()].func();
 }
 
 void op_callScript()
 {
 	if (scrVM.currThread->currFunc == scrVM.currThread->maxFunc)
 	{
-		scr_error("Too many subcalls in one thread!");
-		return;
+		scr_error("Too many nested calls in one thread!", true);
 	}
-	char paramCount = scr_readChar();
+
 	int jumpVal = scr_peekInteger();
 
-	scrVM.currThread->currFunc->subCallJumpBack = scrVM.currThread->scriptPos + sizeof(int);
+	scrVM.currThread->currFunc->callReturnPos = scrVM.currThread->scriptPos + sizeof(int);
 	
 	scrVM.currThread->currFunc++;
-	scrVM.currThread->currFunc->funcStart = scrVM.currThread->scriptPos + jumpVal;
 	scrVM.currThread->scriptPos += jumpVal;
+}
 
-	scr_addVarsFromStack(paramCount);
+void op_popParams()
+{
+	char paramCount = scr_readChar();
+
+	if (paramCount > SCR_MAX_VARS)
+	{
+		scr_error("Script call exceeded SCR_MAX_VARS parameters", false);
+		return;
+	}
+
+	for (int i = 0; i < paramCount; i++)
+	{
+		scrVM.currThread->currFunc->vars[i] = scr_popFromStack();
+	}
 }
 
 void op_end()
@@ -232,41 +240,37 @@ void op_end()
 	else
 	{
 		scrVM.currThread->currFunc--;
-		scrVM.currThread->scriptPos = scrVM.currThread->currFunc->subCallJumpBack;
+		scrVM.currThread->scriptPos = scrVM.currThread->currFunc->callReturnPos;
 	}
 }
 
 void op_wait()
 {
 	scrVM.currThread->isThreadPaused = true;
-	scrVM.currThread->waitStart = glfwGetTime();
-	scrVM.currThread->waitTime = scr_getFloat();
+	scrVM.currThread->pauseStart = time_Milliseconds();
+	scrVM.currThread->pauseTime = scr_popFloat();
 }
 
 void op_getVar()
 {
-	s_scriptVar var = scrVM.currThread->currFunc->vars[scr_readInteger()];
-
+	s_scriptVar var = scr_getVar(scr_readInteger());
 	scr_pushToStack(var);
 }
 
 void op_setVar()
 {
-	s_scriptVar* baseVar = &scrVM.currThread->currFunc->vars[scr_readInteger()];
-	s_scriptVar newVar = scr_getVar();
-	
-	baseVar->type = newVar.type;
-	baseVar->val = newVar.val;
+	s_scriptVar var = scr_popVar();
+	scr_setVar(scr_readInteger(), var);
 }
 
 void op_add()
 {
-	s_scriptVar varOne = scr_getVar();
-	s_scriptVar varTwo = scr_getVar();
+	s_scriptVar varOne = scr_popVar();
+	s_scriptVar varTwo = scr_popVar();
 
 	if (varOne.type != varTwo.type)
 	{
-		scr_error("op_add wrong params!");
+		scr_error("op_add: var types aren't equal!", false);
 		return;
 	}
 
@@ -284,7 +288,7 @@ void op_add()
 		break;
 
 	default:
-		scr_error("incorrect divide type!");
+		scr_error("op_add: var types won't add!", false);
 		return;
 	}
 	
@@ -293,12 +297,12 @@ void op_add()
 
 void op_minus()
 {
-	s_scriptVar varOne = scr_getVar();
-	s_scriptVar varTwo = scr_getVar();
+	s_scriptVar varOne = scr_popVar();
+	s_scriptVar varTwo = scr_popVar();
 
 	if (varOne.type != varTwo.type)
 	{
-		scr_error("op_minus wrong params!");
+		scr_error("op_minus: var types aren't equal!", false);
 		return;
 	}
 
@@ -316,7 +320,7 @@ void op_minus()
 		break;
 
 	default:
-		scr_error("incorrect divide type!");
+		scr_error("op_minus: var types won't minus!", false);
 		return;
 	}
 
@@ -325,12 +329,12 @@ void op_minus()
 
 void op_multiply()
 {
-	s_scriptVar varOne = scr_getVar();
-	s_scriptVar varTwo = scr_getVar();
+	s_scriptVar varOne = scr_popVar();
+	s_scriptVar varTwo = scr_popVar();
 
 	if (varOne.type != varTwo.type)
 	{
-		scr_error("op_multiply wrong params!");
+		scr_error("op_multiply: var types aren't equal!", false);
 		return;
 	}
 
@@ -348,7 +352,7 @@ void op_multiply()
 		break;
 
 	default:
-		scr_error("incorrect divide type!");
+		scr_error("op_multiply: var types won't multiply!", false);
 		return;
 	}
 
@@ -357,12 +361,12 @@ void op_multiply()
 
 void op_divide()
 {
-	s_scriptVar varOne = scr_getVar();
-	s_scriptVar varTwo = scr_getVar();
+	s_scriptVar varOne = scr_popVar();
+	s_scriptVar varTwo = scr_popVar();
 
 	if (varOne.type != varTwo.type)
 	{
-		scr_error("op_divide wrong params!");
+		scr_error("op_divide: var types aren't equal!", false);
 		return;
 	}
 
@@ -380,56 +384,20 @@ void op_divide()
 		break;
 
 	default:
-		scr_error("incorrect divide type!");
+		scr_error("op_divide: var types won't divide!", false);
 		return;
 	}
 
 	scr_pushToStack(value);
 }
 
-void spawnCube()
-{
-	float x = scr_getFloat();
-	float y = scr_getFloat();
-	float z = scr_getFloat();
-
-	addRenderObject(x, y, z);
-}
-
-void debugPrint()
-{
-	s_scriptVar var = scr_getVar();
-
-	switch (var.type)
-	{
-	case SCRIPT_INTEGER:
-		printf("%i\n", var.val.t_int);
-		break;
-
-	case SCRIPT_FLOAT:
-		printf("%f\n", var.val.t_float);
-		break;
-
-	case SCRIPT_STRING:
-		printf("%s\n", var.val.t_str);
-		break;
-	}
-}
-
 void initScriptVM()
 {
-	scrVM.maxThread = &scrVM.threads[SCR_MAX_THREADS - 1];
-	scrVM.currThread = NULL;
+	// Nothing needed
 }
 
 void addNewThread(char* scriptPos)
 {
-	if (scrVM.currThread > scrVM.maxThread)
-	{
-		printf("Unable to exec thread, more than %i threads executing currently\n", SCR_MAX_THREADS);
-		return;
-	}
-
 	for (int i = 0; i < SCR_MAX_THREADS; i++)
 	{
 		if (!scrVM.threads[i].isThreadActive)
@@ -442,16 +410,89 @@ void addNewThread(char* scriptPos)
 			scrVM.threads[i].freeStack = scrVM.threads[i].stack;
 			scrVM.threads[i].maxStack = &scrVM.threads[i].stack[SCR_MAX_STACK - 1];
 
-			scrVM.threads[i].waitStart = -1.0f;
-			scrVM.threads[i].waitTime = -1.0f;
-
-			scrVM.threads[i].maxFunc = &scrVM.threads[i].functionStack[SCR_MAX_CALLS - 1];
 			scrVM.threads[i].currFunc = scrVM.threads[i].functionStack;
-			scrVM.threads[i].currFunc->funcStart = scriptPos;
+			scrVM.threads[i].maxFunc = &scrVM.threads[i].functionStack[SCR_MAX_CALLS - 1];
+			
+			return;
+		}
+	}
 
+	error_noexit("Unable to exec new thread, more than %i threads executing currently\n", SCR_MAX_THREADS);
+}
+
+struct scriptHeader
+{
+	int scrLen;
+	int mainPtr;
+	char* scrStart;
+};
+
+int getBuiltinIndexFromHash(unsigned int hash)
+{
+	for (int i = 0; i < SCR_FUNC_COUNT; i++)
+	{
+		if (scrFuncArray[i].hash == hash)
+			return i;
+	}
+
+	return 0;
+}
+
+bool linkScript(XScript* script)
+{
+	char* scrEnd = script->script + script->scrLen;
+	char* scrPos = script->script; // skip scrlen and main func pointer
+
+	int index;
+	while (scrPos < scrEnd)
+	{
+		char opcode = *scrPos++; // make scrPos point to next value instead of curr opcode
+		switch (opcode)
+		{
+		case 0x00: //op_pushInt
+		case 0x01: //op_pushFloat
+		case 0x02: //op_Jump
+		case 0x06: //op_getVar
+		case 0x07: //op_setVar
+			scrPos += 4;
+			break;
+
+		case 0x03: //op_callBuiltin
+			index = getBuiltinIndexFromHash(*(unsigned int*)scrPos);
+
+			if (index == 0)
+			{
+				printf("linkScript hash %X not found at 0x%llX!", *(unsigned int*)scrPos, scrPos - script->script);
+				return false;
+			}
+
+			*(unsigned int*)scrPos = index;
+			scrPos += 4;
+			break;
+
+		case 0x04: //op_callScript
+			scrPos += 4; // jump pos
+			break;
+
+		case 0x05: //op_wait
+		case 0x08: //op_add
+		case 0x09: //op_minus
+		case 0x0A: //op_multiply
+		case 0x0B: //op_divide
+		case 0x0E: //op_end
+			break;
+
+		case 0x0D: //op_popParams
+			scrPos++;
+			break;
+
+		case 0x0C: //op_pushString
+			scrPos += strlen(scrPos) + 1;
 			break;
 		}
 	}
+
+	return true;
 }
 
 void executeScript(const char* scrName)
@@ -464,10 +505,14 @@ void executeScript(const char* scrName)
 		return;
 	}
 
-	// get main func start
-	char* startPos = (*(int*)script->script) + script->script;
-	addNewThread(startPos);
+	if (!linkScript(script))
+		return;
+
+	// execute main func
+	addNewThread(script->script + script->mainFuncPtr);
 }
+
+void (*opcodeFuncArray[])();
 
 void execCurrThread()
 {
@@ -479,7 +524,7 @@ void execCurrThread()
 
 	if (scrVM.currThread->isThreadPaused)
 	{
-		if (scrVM.currThread->waitStart + scrVM.currThread->waitTime > glfwGetTime())
+		if (scrVM.currThread->pauseStart + scrVM.currThread->pauseTime > time_Milliseconds())
 			return;
 		else
 			scrVM.currThread->isThreadPaused = false;
@@ -500,17 +545,12 @@ void scr_runCurrentThreads()
 	{
 		if (scrVM.threads[i].isThreadActive)
 		{
+			scrVM.currThreadNum = i;
 			scrVM.currThread = &scrVM.threads[i];
 			execCurrThread();
 		}
 	}
 }
-
-void (*scriptFuncArray[])() =
-{
-	spawnCube,
-	debugPrint
-};
 
 void (*opcodeFuncArray[])() =
 {
@@ -527,5 +567,6 @@ void (*opcodeFuncArray[])() =
 	op_multiply,
 	op_divide,
 	op_pushString,
+	op_popParams,
 	op_end
 };

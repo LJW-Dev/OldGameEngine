@@ -4,31 +4,30 @@
 
 #include "dvar.h"
 
+#include "src/error/error.h"
+
 #define DVAR_MAX 100
 
 s_dvar dvarArray[DVAR_MAX];
 int dvarCount = 0;
 
-s_dvar* dvar_Register(const char* dvarName, const char* description, e_dvarTypes type, u_dvarType defaultValue, u_dvarType minValue, u_dvarType maxValue)
+s_dvar* dvar_Register(const char* dvarName, const char* description, e_dvarTypes type, u_dvarData dvarData)
 {
 	if (dvarCount >= DVAR_MAX)
 	{
-		printf("dvar count exceeded!");
-		return NULL;
+		error_exit("More than %i dvars!\n", DVAR_MAX);
 	}
 
 	if (dvarName == NULL)
 	{
-		printf("dvar name can't be null!");
-		return NULL;
+		error_exit("dvar name can't be null!\n");
 	}
 
 	for (int i = 0; dvarName[i] != '\0'; i++)
 	{
 		if (isalpha(dvarName[i]) && !islower(dvarName[i]))
 		{
-			printf("dvar %s must be all lowercase!", dvarName);
-			return NULL;
+			error_exit("dvar %s must be all lowercase!\n", dvarName);
 		}
 	}
 
@@ -37,10 +36,18 @@ s_dvar* dvar_Register(const char* dvarName, const char* description, e_dvarTypes
 	currDvar->name = dvarName;
 	currDvar->description = description;
 	currDvar->type = type;
-	currDvar->curValue = defaultValue;
-	currDvar->minValue = minValue;
-	currDvar->maxValue = maxValue;
 
+	if (type == DVAR_FUNC)
+	{
+		currDvar->dvarData.function = dvarData.function;
+	}
+	else
+	{
+		currDvar->dvarData.data.curValue = dvarData.data.curValue;
+		currDvar->dvarData.data.minValue = dvarData.data.minValue;
+		currDvar->dvarData.data.maxValue = dvarData.data.maxValue;
+	}
+	
 	dvarCount++;
 
 	return currDvar;
@@ -48,41 +55,44 @@ s_dvar* dvar_Register(const char* dvarName, const char* description, e_dvarTypes
 
 s_dvar* dvar_RegisterInteger(const char* dvarName, const char* description, int defaultValue, int minValue, int maxValue)
 {
-	u_dvarType minVal;
-	u_dvarType maxVal;
-	u_dvarType defValue;
+	u_dvarData dvarData;
 
-	minVal.integer_t = minValue;
-	maxVal.integer_t = maxValue;
-	defValue.integer_t = defaultValue;
+	dvarData.data.minValue.integer_t = minValue;
+	dvarData.data.maxValue.integer_t = maxValue;
+	dvarData.data.curValue.integer_t = defaultValue;
 
-	return dvar_Register(dvarName, description, DVAR_INTEGER, defValue, minVal, maxVal);
+	return dvar_Register(dvarName, description, DVAR_INTEGER, dvarData);
 }
 
 s_dvar* dvar_RegisterFloat(const char* dvarName, const char* description, float defaultValue, float minValue, float maxValue)
 {
-	u_dvarType minVal;
-	u_dvarType maxVal;
-	u_dvarType defValue;
+	u_dvarData dvarData;
 
-	minVal.float_t = minValue;
-	maxVal.float_t = maxValue;
-	defValue.float_t = defaultValue;
+	dvarData.data.minValue.float_t = minValue;
+	dvarData.data.maxValue.float_t = maxValue;
+	dvarData.data.curValue.float_t = defaultValue;
 
-	return dvar_Register(dvarName, description, DVAR_FLOAT, defValue, minVal, maxVal);
+	return dvar_Register(dvarName, description, DVAR_FLOAT, dvarData);
 }
 
 s_dvar* dvar_RegisterBool(const char* dvarName, const char* description, bool defaultValue)
 {
-	u_dvarType minVal;
-	u_dvarType maxVal;
-	u_dvarType defValue;
+	u_dvarData dvarData;
 
-	minVal.bool_t = false;
-	maxVal.bool_t = true;
-	defValue.bool_t = defaultValue;
+	dvarData.data.minValue.bool_t = 0;
+	dvarData.data.maxValue.bool_t = 1;
+	dvarData.data.curValue.bool_t = defaultValue;
 
-	return dvar_Register(dvarName, description, DVAR_BOOL, defValue, minVal, maxVal);
+	return dvar_Register(dvarName, description, DVAR_BOOL, dvarData);
+}
+
+s_dvar* dvar_RegisterFunction(const char* dvarName, const char* description, void (*function)(s_paramInfo* arguments))
+{
+	u_dvarData dvarData;
+
+	dvarData.function = function;
+
+	return dvar_Register(dvarName, description, DVAR_FUNC, dvarData);
 }
 
 s_dvar* dvar_findVar(char* dvarName)
@@ -101,19 +111,36 @@ s_dvar* dvar_findVar(char* dvarName)
 	return NULL;
 }
 
+void dvar_call(s_dvar* dvar, s_paramInfo* arguments)
+{
+	if (dvar->type != DVAR_FUNC)
+		error_exit("Dvar %s not a function!\n", dvar->name);
+
+	dvar->dvarData.function(arguments);
+}
+
 bool dvar_getBool(s_dvar* dvar)
 {
-	return dvar->curValue.bool_t;
+	if (dvar->type != DVAR_BOOL)
+		error_exit("Dvar %s not a bool!\n", dvar->name);
+
+	return dvar->dvarData.data.curValue.bool_t;
 }
 
 int dvar_getInt(s_dvar* dvar)
 {
-	return dvar->curValue.integer_t;
+	if (dvar->type != DVAR_INTEGER)
+		error_exit("Dvar %s not an integer!\n", dvar->name);
+
+	return dvar->dvarData.data.curValue.integer_t;
 }
 
 float dvar_getFloat(s_dvar* dvar)
 {
-	return dvar->curValue.float_t;
+	if (dvar->type != DVAR_FLOAT)
+		error_exit("Dvar %s not a float!\n", dvar->name);
+
+	return dvar->dvarData.data.curValue.float_t;
 }
 
 e_dvarTypes dvar_getType(s_dvar* dvar)
@@ -124,62 +151,47 @@ e_dvarTypes dvar_getType(s_dvar* dvar)
 void dvar_setBool(s_dvar* dvar, bool value)
 {
 	if (dvar->type != DVAR_BOOL)
-		return;
+		error_exit("Dvar %s not a bool!\n", dvar->name);
 
-	dvar->curValue.bool_t = value;
+	dvar->dvarData.data.curValue.bool_t = value;
 }
 
 void dvar_setInt(s_dvar* dvar, int value)
 {
 	if (dvar->type != DVAR_INTEGER)
-		return;
+		error_exit("Dvar %s not an integer!\n", dvar->name);
 
-	if (value > dvar->maxValue.integer_t)
+	if (value > dvar->dvarData.data.maxValue.integer_t)
 	{
-		value = dvar->maxValue.integer_t;
+		value = dvar->dvarData.data.maxValue.integer_t;
 		return;
 	}
 		
-	if (value < dvar->minValue.integer_t)
+	if (value < dvar->dvarData.data.minValue.integer_t)
 	{
-		value = dvar->minValue.integer_t;
+		value = dvar->dvarData.data.minValue.integer_t;
 		return;
 	}
 
-	dvar->curValue.integer_t = value;
+	dvar->dvarData.data.curValue.integer_t = value;
 }
 
 void dvar_setFloat(s_dvar* dvar, float value)
 {
 	if (dvar->type != DVAR_FLOAT)
-		return;
+		error_exit("Dvar %s not a float!\n", dvar->name);
 
-	if (value > dvar->maxValue.float_t)
+	if (value > dvar->dvarData.data.maxValue.float_t)
 	{
-		value = dvar->maxValue.float_t;
+		value = dvar->dvarData.data.maxValue.float_t;
 		return;
 	}
 
-	if (value < dvar->minValue.float_t)
+	if (value < dvar->dvarData.data.minValue.float_t)
 	{
-		value = dvar->minValue.float_t;
+		value = dvar->dvarData.data.minValue.float_t;
 		return;
 	}
 
-	dvar->curValue.float_t = value;
-}
-
-s_dvar* sv_overrideTimestep;
-s_dvar* sv_timestep;
-s_dvar* game_exit;
-s_dvar* cl_wireframe;
-s_dvar* cl_sensitivity;
-
-void initDvars()
-{
-	sv_overrideTimestep = dvar_RegisterBool("sv_overridetimestep", "Override frame based timestep", false);
-	sv_timestep = dvar_RegisterFloat("sv_timestep", "Timestep when sv_overrideTimestep is true", 1.0f / 30.0f, 0, 1.0f);
-	game_exit = dvar_RegisterBool("game_exit", "Game will close when true", false);
-	cl_wireframe = dvar_RegisterBool("cl_wireframe", "Enable wireframe", false);
-	cl_sensitivity = dvar_RegisterFloat("cl_sensitivity", "Player sensitivity", 0.5f, 0.0f, 10.0f);
+	dvar->dvarData.data.curValue.float_t = value;
 }

@@ -2,14 +2,35 @@
 #include <stdio.h>
 
 #include "src/window/Window.h"
-#include "src/input/Input.h"
-#include "src/dvar/dvar.h"
+#include "src/dvar/dvar_list.h"
+#include "window_callback.h"
 
-GLFWwindow* mainWindow;
+
+
+struct s_windowInfo
+{
+    GLFWwindow* mainWindow;
+    bool isFocused;
+    bool shouldClose;
+};
+
+s_windowInfo windowInfo;
+
+void window_windowShouldClose()
+{
+    windowInfo.shouldClose = true;
+}
+
+void window_setFocus(bool focused)
+{
+    windowInfo.isFocused = focused;
+}
 
 void initCallbacks()
 {
-    glfwSetKeyCallback(mainWindow, glfw_keyPressCallback);
+    glfwSetKeyCallback(windowInfo.mainWindow, window_keyPressCallback);
+    glfwSetWindowFocusCallback(windowInfo.mainWindow, window_FocusCallback);
+    glfwSetWindowCloseCallback(windowInfo.mainWindow, window_closeCallback);
 }
 
 bool initWindow()
@@ -28,14 +49,14 @@ bool initWindow()
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); // We don't want the old OpenGL 
 
     // Open a window and create its OpenGL context
-    mainWindow = glfwCreateWindow(WINDOW_X, WINDOW_Y, "Engine", NULL, NULL);
-    if (mainWindow == NULL) 
+    windowInfo.mainWindow = glfwCreateWindow(WINDOW_X, WINDOW_Y, "Engine", NULL, NULL);
+    if (windowInfo.mainWindow == NULL)
     {
         printf("Failed to open GLFW window.\n");
         glfwTerminate();
         return false;
     }
-    glfwMakeContextCurrent(mainWindow); // Initialize GLEW
+    glfwMakeContextCurrent(windowInfo.mainWindow); // Initialize GLEW
 
     if (glewInit() != GLEW_OK) 
     {
@@ -43,8 +64,7 @@ bool initWindow()
         return false;
     }
 
-    // Ensure we can capture the escape key being pressed below
-    //glfwSetInputMode(mainWindow, GLFW_STICKY_KEYS, GL_TRUE);
+    windowInfo.isFocused = true;
 
     initCallbacks();
 
@@ -54,26 +74,26 @@ bool initWindow()
 void swapBuffersAndPoll()
 {
     // Swap buffers
-    glfwSwapBuffers(mainWindow);
+    glfwSwapBuffers(windowInfo.mainWindow);
     glfwPollEvents();
 }
 
 bool shouldExitWindow()
 {
-    return dvar_getBool(game_exit) || glfwWindowShouldClose(mainWindow);
+    return windowInfo.shouldClose;
 }
 
 void getMousePos(double* xpos, double* ypos)
 {
-    glfwGetCursorPos(mainWindow, xpos, ypos);
+    glfwGetCursorPos(windowInfo.mainWindow, xpos, ypos);
 }
 
 void setMousePos(double xpos, double ypos)
 {
-    glfwSetCursorPos(mainWindow, xpos, ypos);
+    glfwSetCursorPos(windowInfo.mainWindow, xpos, ypos);
 }
 
 bool isWindowFocused()
 {
-    return glfwGetWindowAttrib(mainWindow, GLFW_FOCUSED);
+    return windowInfo.isFocused;
 }
