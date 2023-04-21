@@ -1,5 +1,4 @@
 ﻿using Irony.Parsing;
-using System.Xml.Serialization;
 
 namespace AssetCompiler
 {
@@ -15,61 +14,114 @@ namespace AssetCompiler
             CommentTerminal lineComment = new CommentTerminal("lineComment", "//", "\r", "\n", "\u2085", "\u2028", "\u2029");
             NonGrammarTerminals.Add(lineComment);
 
-            this.MarkPunctuation(";", ",", "(", ")", "{", "}", "=", "wait");
+            MarkPunctuation(";", ",", "(", ")", "{", "}", "wait", "return", "if", "else", "do", "while", "for", "thread");
 
-            this.RegisterOperators(9, "+", "-");
-            this.RegisterOperators(10, "*", "/");
+            RegisterOperators(10, "*", "/", "%");
+            RegisterOperators(9, "+", "-");
+            RegisterOperators(8, "<<", ">>");
+            RegisterOperators(7, ">", "<", "<=", ">=");
+            RegisterOperators(6, "==", "!=");
+            RegisterOperators(5, "&");
+            RegisterOperators(4, "^");
+            RegisterOperators(3, "|");
+
+            // Conditional Operators
+            RegisterOperators(2, "&&");
+            RegisterOperators(1, "||");
+
+
 
             var script = new NonTerminal("script");
-            this.Root = script;
+            Root = script;
 
             var expression = new NonTerminal("expression");
-            var bracket = new NonTerminal("bracket");
+
+            var curlyBrackets = new NonTerminal("curlyBrackets");
+            var brackets = new NonTerminal("brackets");
+
             var assignment = new NonTerminal("assignment");
+            var assignmentOperator = new NonTerminal("assignmentOperator");
 
             var line = new NonTerminal("line");
-            var lineRule = new NonTerminal("lineRule");
             var lineList = new NonTerminal("lineList");
+            var lineStatement = new NonTerminal("lineStatement");
+            var lineNoPunctuation = new NonTerminal("lineNoPunctuation");
 
-            var binary_operator = new NonTerminal("binary_operator");
-            var binary_expression = new NonTerminal("binary_expression");
+            var logicalOperator = new NonTerminal("logicalOperator");
+            var binaryOperator = new NonTerminal("binaryOperator");
+            var binaryExpression = new NonTerminal("binaryExpression");
 
             var call = new NonTerminal("call");
-            var wait = new NonTerminal("wait");
+            var threadCall = new NonTerminal("threadCall");
             var paramList = new NonTerminal("paramList");
+
+            var wait = new NonTerminal("wait");
+            var returnStatement = new NonTerminal("returnStatement");
+            var jumpStatement = new NonTerminal("jumpStatement");
 
             var function = new NonTerminal("function");
             var functionFlags = new NonTerminal("functionFlags");
-            var functionCode = new NonTerminal("functionCode");
             var functionParams = new NonTerminal("functionParams");
             var functionParamsList = new NonTerminal("functionParamsList");
 
-            lineRule.Rule = call | assignment | wait;
-            line.Rule = lineRule + ToTerm(";");
+            var ifStatement = new NonTerminal("ifStatement");
+
+            var whileStatement = new NonTerminal("whileStatement");
+
+            var doStatement = new NonTerminal("doStatement");
+
+            var forStatement = new NonTerminal("forStatement");
+
+            lineStatement.Rule = call | threadCall | assignment | wait | returnStatement | jumpStatement | doStatement;
+            lineNoPunctuation.Rule = curlyBrackets | ifStatement | whileStatement | forStatement;
+            line.Rule = lineNoPunctuation | lineStatement + ToTerm(";");
             lineList.Rule = MakeStarRule(lineList, line);
 
-            expression.Rule = identifier | number | stringLiteral | bracket | binary_expression;
+            expression.Rule = identifier | number | stringLiteral | brackets | binaryExpression | call;
 
-            binary_operator.Rule = ToTerm("+") | "-" | "*" | "/";
-            binary_expression.Rule = expression + binary_operator + expression;
+            binaryOperator.Rule = 
+                ToTerm("==") | "!=" 
+                | ">" | "<" | "<=" | ">=" 
+                | "+" | "-" 
+                | "*" | "/" | "%"
+                | "|" | "&" | "^" 
+                | ">>" | "<<"
+                | ToTerm("||") | "&&";
+            
+            binaryExpression.Rule = expression + binaryOperator + expression;
 
             wait.Rule = ToTerm("wait") + expression;
+            returnStatement.Rule = ToTerm("return") | ToTerm("return") + expression;
+            jumpStatement.Rule = ToTerm("break") | ToTerm("continue");
+
             call.Rule = identifier + ToTerm("(") + paramList + ToTerm(")");
+            threadCall.Rule = ToTerm("thread") + identifier + ToTerm("(") + paramList + ToTerm(")");
             paramList.Rule = MakeStarRule(paramList, ToTerm(","), expression);
 
-            bracket.Rule = ToTerm("(") + expression + ToTerm(")");
-            assignment.Rule = identifier + ToTerm("=") + expression;
+            brackets.Rule = ToTerm("(") + expression + ToTerm(")");
+            curlyBrackets.Rule = ToTerm("{") + lineList + ToTerm("}");
+
+            assignmentOperator.Rule = ToTerm("=") | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^=" | "<<=" | ">>=";
+            assignment.Rule = identifier + assignmentOperator + expression;
 
             functionParamsList.Rule = MakeStarRule(functionParamsList, ToTerm(","), identifier);
             functionParams.Rule = ToTerm("(") + functionParamsList + ToTerm(")");
-            functionCode.Rule = ToTerm("{") + lineList + ToTerm("}");
-            functionFlags.Rule = ToTerm("main") + identifier | identifier;
-            function.Rule = functionFlags + functionParams + functionCode;
+            functionFlags.Rule = ToTerm("main").Q(); // can have 0 or 1 times
+            function.Rule = functionFlags + identifier + functionParams + curlyBrackets;
+
+            ifStatement.Rule = ToTerm("if") + ToTerm("(") + binaryExpression + ToTerm(")") + line 
+                | ToTerm("if") + ToTerm("(") + binaryExpression + ToTerm(")") + line + ToTerm("else") + line;
+
+            whileStatement.Rule = ToTerm("while") + ToTerm("(") + binaryExpression + ToTerm(")") + line;
+
+            doStatement.Rule = ToTerm("do") + line + ToTerm("while") + ToTerm("(") + binaryExpression + ToTerm(")");
+
+            forStatement.Rule = ToTerm("for") + ToTerm("(") + assignment + ";" + binaryExpression + ";" + assignment + ToTerm(")") + line;
 
             script.Rule = MakeStarRule(script, function);
 
             // Mark NonTerminals that aren't needed as ChildNodes
-            MarkTransient(lineRule, line, functionCode, functionParams, expression, binary_operator);
+            MarkTransient(lineStatement, lineNoPunctuation, line, functionParams, functionFlags, expression, logicalOperator, binaryOperator, assignmentOperator);
         }
     }
 }

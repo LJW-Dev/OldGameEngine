@@ -1,20 +1,19 @@
-#include <stdio.h>
-#include <fstream>
-
 #define STB_IMAGE_IMPLEMENTATION
 #include "src\external\stb_image.h"
-
 #include "src\assetDB\AssetDB.h"
 #include "src\openGL\OpenGL_Import.h"
+#include "src/error/error.h"
 
-XFont s_XFontPool[ASSET_MAX];
-XModel s_XModelPool[ASSET_MAX];
-XMaterial s_XMaterialPool[ASSET_MAX];
-XScript s_XScriptPool[ASSET_MAX];
-XworldObject s_WorldObjectPool[1];
-XClipMap s_ClipMapPool[1];
+fontAsset fontPool[ASSET_MAX];
+modelAsset modelPool[ASSET_MAX];
+materialAsset materialPool[ASSET_MAX];
+scriptAsset scriptPool[ASSET_MAX];
+worldAsset worldPool[1];
+clipAsset clipPool[1];
 
-const int assetNamesSize = XASSET_MAX + 1;
+s_assetPool assetPool[ASSET_MAX + 1];
+
+const int assetNamesSize = ASSET_MAX + 1;
 const char* assetNames[] =
 {
 	"FONT",
@@ -25,66 +24,69 @@ const char* assetNames[] =
 	"SCRIPT"
 };
 
-xAsset s_assetPool[XASSET_MAX + 1];
+const char* getAssetTypeName(e_assetType type)
+{
+	return assetNames[type];
+}
 
-char* getXAssetName(xAssetType type, char* header)
+char* getAssetName(e_assetType type, assetHeader header)
 {
 	switch (type)
 	{
-	case XASSET_FONT:
-		return ((XFont*)header)->name;
-	case XASSET_MATERIAL:
-		return ((XMaterial*)header)->name;
-	case XASSET_MODEL:
-		return ((XModel*)header)->name;
-	case XASSET_WORLD:
-		return ((XworldObject*)header)->name;
-	case XASSET_CLIPMAP:
-		return ((XClipMap*)header)->name;
-	case XASSET_SCRIPT:
-		return ((XScript*)header)->name;
+	case ASSET_FONT:
+		return header.font->name;
+	case ASSET_MATERIAL:
+		return header.material->name;
+	case ASSET_MODEL:
+		return header.model->name;
+	case ASSET_WORLD:
+		return header.world->name;
+	case ASSET_CLIPMAP:
+		return header.clip->name;
+	case ASSET_SCRIPT:
+		return header.script->name;
 	default:
 		return NULL;
 	}
 }
 
-XAssetHeader findAsset(xAssetType type, const char* name)
+assetHeader findAsset(e_assetType type, const char* name, bool errorifMissing)
 {
-	XAssetHeader header;
-	header.data = NULL;
+	assetHeader header;
+	char* asetPool = assetPool[type].pool;
 
-	char* asetPool = s_assetPool[type].pool;
-
-	for (int i = 0; i < s_assetPool[type].usedCount; i++)
+	for (int i = 0; i < assetPool[type].usedCount; i++)
 	{
-		if (strcmp(getXAssetName(type, asetPool), name) == 0)
+		header.data = asetPool;
+		if (strcmp(getAssetName(type, header), name) == 0)
 		{
-			header.data = asetPool;
 			return header;
 		}
 
-		asetPool += s_assetPool[type].assetSize;
+		asetPool += assetPool[type].assetSize;
 	}
 
-	printf("couldn't find %s %s\n", assetNames[type], name);
+	if(errorifMissing)
+		error_exit("couldn't find %s %s asset\n", getAssetTypeName(type), name);
 
+	header.data = NULL;
 	return header;
 }
 
-XAssetHeader getNextInPool(xAssetType type)
+assetHeader getNextInPool(e_assetType type)
 {
-	XAssetHeader header;
+	assetHeader header;
 	header.data = NULL;
 
-	if (s_assetPool[type].usedCount >= s_assetPool[type].maxPoolSize)
+	if (assetPool[type].usedCount == assetPool[type].maxPoolSize)
 	{
-		return header;
+		error_exit("Tried to load more than %i %s assets.\n", assetPool[type].maxPoolSize, getAssetTypeName(type));
 	}
 	
-	header.data = s_assetPool[type].freeHead;
+	header.data = assetPool[type].freeHead;
 
-	s_assetPool[type].usedCount++;
-	s_assetPool[type].freeHead += s_assetPool[type].assetSize;
+	assetPool[type].usedCount++;
+	assetPool[type].freeHead += assetPool[type].assetSize;
 
 	return header;
 }
@@ -101,17 +103,15 @@ void readNullTermString(FILE* file, char* buffer)
 	}
 }
 
-void load_XModel(FILE* file, char* name)
+void load_modelAsset(FILE* file, char* name)
 {
-	XModel* header = getNextInPool(XASSET_MODEL).XModel;
-
-	if (header == NULL)
-	{
-		printf("Too many Xmodels!");
-		return;
-	}
+	modelAsset* header = getNextInPool(ASSET_MODEL).model;
 
 	header->name = name;
+
+	char matName[MAX_ASSET_NAME_LEN];
+	readNullTermString(file, matName);
+	header->texture = findAsset(ASSET_MATERIAL, matName, true).material;
 
 	fread_s(&header->vertexCount, sizeof(int), sizeof(int), 1, file);
 	fread_s(&header->UVCount, sizeof(int), sizeof(int), 1, file);
@@ -123,21 +123,15 @@ void load_XModel(FILE* file, char* name)
 	fread_s(header->UVs, header->UVCount * sizeof(float), sizeof(float), header->UVCount, file);
 }
 
-void load_XFont(FILE* file, char* name)
+void load_fontAsset(FILE* file, char* name)
 {
-	XFont* header = getNextInPool(XASSET_FONT).XFont;
-
-	if (header == NULL)
-	{
-		printf("Too many XFonts!");
-		return;
-	}
+	fontAsset* header = getNextInPool(ASSET_FONT).font;
 
 	header->name = name;
 
 	char matName[MAX_ASSET_NAME_LEN];
 	readNullTermString(file, matName);
-	header->texture = findAsset(XASSET_MATERIAL, matName).XMaterial;
+	header->texture = findAsset(ASSET_MATERIAL, matName, true).material;
 
 	fread_s(&header->lettersPerLine, sizeof(int), sizeof(int), 1, file);
 	fread_s(&header->glyphHeight, sizeof(int), sizeof(int), 1, file);
@@ -146,30 +140,19 @@ void load_XFont(FILE* file, char* name)
 	fread_s(header->glyphWidthArray, sizeof(header->glyphWidthArray), sizeof(char), sizeof(header->glyphWidthArray), file);
 }
 
-void load_XMaterial(FILE* file, char* name)
+void load_materialAsset(FILE* file, char* name)
 {
-	XMaterial* matHeader = getNextInPool(XASSET_MATERIAL).XMaterial;
-	if (matHeader == NULL)
-	{
-		printf("Too many materials!");
-		return;
-	}
-	matHeader->name = name;
+	materialAsset* matHeader = getNextInPool(ASSET_MATERIAL).material;
 
-	int channels;
-	matHeader->imageData = stbi_load_from_file(file, &matHeader->width, &matHeader->height, &channels, 0);
-	matHeader->openGLTexture = imoprtTextureIntoGL(matHeader->width, matHeader->height, matHeader->imageData);
+	matHeader->name = name;
+	unsigned char* imageData = stbi_load_from_file(file, &matHeader->width, &matHeader->height, &matHeader->channels, 0);
+	matHeader->openGLTexture = imoprtTextureIntoGL(matHeader->width, matHeader->height, imageData);
+	free(imageData);
 }
 
-void load_WorldObject(FILE* file, char* name)
+void load_worldAsset(FILE* file, char* name)
 {
-	XworldObject* header = getNextInPool(XASSET_WORLD).World;
-
-	if (header == NULL)
-	{
-		printf("Too many Xmodels!");
-		return;
-	}
+	worldAsset* header = getNextInPool(ASSET_WORLD).world;
 
 	header->name = name;
 
@@ -201,14 +184,14 @@ void load_WorldObject(FILE* file, char* name)
 	}
 }
 
-void load_clipWorld(FILE* file, char* name)
+void load_clipAsset(FILE* file, char* name)
 {
-	XClipMap* header = getNextInPool(XASSET_CLIPMAP).Clip;
+	clipAsset* header = getNextInPool(ASSET_CLIPMAP).clip;
 
 	header->name = name;
 
 	fread_s(&header->numClipBounds, sizeof(int), sizeof(int), 1, file);
-	header->clips = new ClipBound[header->numClipBounds];
+	header->clips = new clipBound[header->numClipBounds];
 
 	float vec3Buffer[3 * 3];
 	for (int i = 0; i < header->numClipBounds; i++)
@@ -228,67 +211,68 @@ void load_clipWorld(FILE* file, char* name)
 	}
 }
 
-void load_XScript(FILE* file, char* name)
+void load_scriptAsset(FILE* file, char* name)
 {
-	XScript* header = getNextInPool(XASSET_SCRIPT).Script;
+	scriptAsset* header = getNextInPool(ASSET_SCRIPT).script;
 
 	header->name = name;
 
-	fread_s(&header->scrLen, sizeof(header->scrLen), sizeof(header->scrLen), 1, file);
-	fread_s(&header->mainFuncPtr, sizeof(header->mainFuncPtr), sizeof(header->mainFuncPtr), 1, file);
+	fseek(file, 0, SEEK_END);
+	header->length = ftell(file);
+	fseek(file, 0, SEEK_SET);
 
-	header->script = new char[header->scrLen];
-	fread_s(header->script, header->scrLen, sizeof(char), header->scrLen, file);
+	header->script = new char[header->length];
+	fread_s(header->script, header->length, sizeof(char), header->length, file);
 }
 
-void loadAsset(xAssetType type, char* assetName)
+void loadAsset(e_assetType type, char* assetName)
 {
 	FILE* file;
 	if (fopen_s(&file, assetName, "rb") != 0)
 	{
-		printf("Asset %s not found.\n", assetName);
+		error_noexit("Asset %s not found.\n", assetName);
 		return;
 	}
 
 	switch (type)
 	{
-	case XASSET_FONT:
-		load_XFont(file, assetName);
+	case ASSET_FONT:
+		load_fontAsset(file, assetName);
 		break;
 
-	case XASSET_MATERIAL:
-		load_XMaterial(file, assetName);
+	case ASSET_MATERIAL:
+		load_materialAsset(file, assetName);
 		break;
 
-	case XASSET_MODEL:
-		load_XModel(file, assetName);
+	case ASSET_MODEL:
+		load_modelAsset(file, assetName);
 		break;
 
-	case XASSET_WORLD:
-		load_WorldObject(file, assetName);
+	case ASSET_WORLD:
+		load_worldAsset(file, assetName);
 		break;
 
-	case XASSET_CLIPMAP:
-		load_clipWorld(file, assetName);
+	case ASSET_CLIPMAP:
+		load_clipAsset(file, assetName);
 		break;
 
-	case XASSET_SCRIPT:
-		load_XScript(file, assetName);
+	case ASSET_SCRIPT:
+		load_scriptAsset(file, assetName);
 		break;
 	}
 
 	fclose(file);
 }
 
-xAssetType convertStrToType(char* assetType)
+e_assetType convertStrToType(char* assetType)
 {
 	for (int i = 0; i < assetNamesSize; i++)
 	{
 		if (!strcmp(assetNames[i], assetType))
-			return static_cast<xAssetType>(i);
+			return static_cast<e_assetType>(i);
 	}
 
-	return XASSET_NULL;
+	return ASSET_NULL;
 }
 
 void loadAssets()
@@ -297,8 +281,7 @@ void loadAssets()
 
 	if (fopen_s(&assetFile, "assets\\assets.txt", "r") != 0)
 	{
-		printf("Unable to open assetFile.\n");
-		return;
+		error_exit("Unable to open assetFile.\n");
 	}
 
 	char assetTypeStr[MAX_ASSET_NAME_LEN];
@@ -309,50 +292,50 @@ void loadAssets()
 		assetName = new char[MAX_ASSET_NAME_LEN], MAX_ASSET_NAME_LEN
 	) != -1)
 	{
-		xAssetType assetType = convertStrToType(assetTypeStr);
+		e_assetType assetType = convertStrToType(assetTypeStr);
 
-		if(assetType != XASSET_NULL)
+		if(assetType != ASSET_NULL)
 			loadAsset(assetType, assetName);
 	}
 }
 
-void initXAssetPool()
+void initAssetPool()
 {
-	s_assetPool[XASSET_FONT].maxPoolSize = ASSET_MAX;
-	s_assetPool[XASSET_FONT].usedCount = 0;
-	s_assetPool[XASSET_FONT].assetSize = sizeof(XFont);
-	s_assetPool[XASSET_FONT].freeHead = (char*)s_XFontPool;
-	s_assetPool[XASSET_FONT].pool = (char*)s_XFontPool;
+	assetPool[ASSET_FONT].maxPoolSize = ASSET_MAX;
+	assetPool[ASSET_FONT].usedCount = 0;
+	assetPool[ASSET_FONT].assetSize = sizeof(fontAsset);
+	assetPool[ASSET_FONT].freeHead = (char*)fontPool;
+	assetPool[ASSET_FONT].pool = (char*)fontPool;
 
-	s_assetPool[XASSET_MATERIAL].maxPoolSize = ASSET_MAX;
-	s_assetPool[XASSET_MATERIAL].usedCount = 0;
-	s_assetPool[XASSET_MATERIAL].assetSize = sizeof(XMaterial);
-	s_assetPool[XASSET_MATERIAL].freeHead = (char*)s_XMaterialPool;
-	s_assetPool[XASSET_MATERIAL].pool = (char*)s_XMaterialPool;
+	assetPool[ASSET_MATERIAL].maxPoolSize = ASSET_MAX;
+	assetPool[ASSET_MATERIAL].usedCount = 0;
+	assetPool[ASSET_MATERIAL].assetSize = sizeof(materialAsset);
+	assetPool[ASSET_MATERIAL].freeHead = (char*)materialPool;
+	assetPool[ASSET_MATERIAL].pool = (char*)materialPool;
 
-	s_assetPool[XASSET_MODEL].maxPoolSize = ASSET_MAX;
-	s_assetPool[XASSET_MODEL].usedCount = 0;
-	s_assetPool[XASSET_MODEL].assetSize = sizeof(XModel);
-	s_assetPool[XASSET_MODEL].freeHead = (char*)s_XModelPool;
-	s_assetPool[XASSET_MODEL].pool = (char*)s_XModelPool;
+	assetPool[ASSET_MODEL].maxPoolSize = ASSET_MAX;
+	assetPool[ASSET_MODEL].usedCount = 0;
+	assetPool[ASSET_MODEL].assetSize = sizeof(modelAsset);
+	assetPool[ASSET_MODEL].freeHead = (char*)modelPool;
+	assetPool[ASSET_MODEL].pool = (char*)modelPool;
 
-	s_assetPool[XASSET_CLIPMAP].maxPoolSize = 1;
-	s_assetPool[XASSET_CLIPMAP].usedCount = 0;
-	s_assetPool[XASSET_CLIPMAP].assetSize = sizeof(XClipMap);
-	s_assetPool[XASSET_CLIPMAP].freeHead = (char*)s_ClipMapPool;
-	s_assetPool[XASSET_CLIPMAP].pool = (char*)s_ClipMapPool;
+	assetPool[ASSET_CLIPMAP].maxPoolSize = 1;
+	assetPool[ASSET_CLIPMAP].usedCount = 0;
+	assetPool[ASSET_CLIPMAP].assetSize = sizeof(clipAsset);
+	assetPool[ASSET_CLIPMAP].freeHead = (char*)clipPool;
+	assetPool[ASSET_CLIPMAP].pool = (char*)clipPool;
 
-	s_assetPool[XASSET_WORLD].maxPoolSize = 1;
-	s_assetPool[XASSET_WORLD].usedCount = 0;
-	s_assetPool[XASSET_WORLD].assetSize = sizeof(XworldObject);
-	s_assetPool[XASSET_WORLD].freeHead = (char*)s_WorldObjectPool;
-	s_assetPool[XASSET_WORLD].pool = (char*)s_WorldObjectPool;
+	assetPool[ASSET_WORLD].maxPoolSize = 1;
+	assetPool[ASSET_WORLD].usedCount = 0;
+	assetPool[ASSET_WORLD].assetSize = sizeof(worldAsset);
+	assetPool[ASSET_WORLD].freeHead = (char*)worldPool;
+	assetPool[ASSET_WORLD].pool = (char*)worldPool;
 
-	s_assetPool[XASSET_SCRIPT].maxPoolSize = ASSET_MAX;
-	s_assetPool[XASSET_SCRIPT].usedCount = 0;
-	s_assetPool[XASSET_SCRIPT].assetSize = sizeof(XScript);
-	s_assetPool[XASSET_SCRIPT].freeHead = (char*)s_XScriptPool;
-	s_assetPool[XASSET_SCRIPT].pool = (char*)s_XScriptPool;
+	assetPool[ASSET_SCRIPT].maxPoolSize = ASSET_MAX;
+	assetPool[ASSET_SCRIPT].usedCount = 0;
+	assetPool[ASSET_SCRIPT].assetSize = sizeof(scriptAsset);
+	assetPool[ASSET_SCRIPT].freeHead = (char*)scriptPool;
+	assetPool[ASSET_SCRIPT].pool = (char*)scriptPool;
 
 	loadAssets();
 }

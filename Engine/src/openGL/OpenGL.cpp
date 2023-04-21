@@ -1,24 +1,12 @@
 #include "src/openGL/OpenGL_Draw.h"
-#include "src\openGL\compile\ShaderCompile.h"
 #include "src\window\Window.h"
-
 #include "src/dvar/dvar_list.h"
-
 #include "src\physics\Physics.h"
 #include "src/console/Console.h"
-
-#include "src/player/Player.h"
-
-#include <math.h>
-
-#include <vector>
-
-#include "src\assetDB\AssetDB.h"
-#include "src/entity/Entity.h"
-
+#include "src/input/textBox.h"
 #include "src/utils/time.h"
-
 #include "src/debug/debug.h"
+#include "src/world/world.h"
 
 struct s_frameInfo
 {
@@ -27,13 +15,6 @@ struct s_frameInfo
 };
 
 s_frameInfo frameInfo;
-
-XworldObject* worldObj;
-
-void setupWorld()
-{
-    worldObj = findAsset(XASSET_WORLD, "assets\\world\\world.model").World;
-}
 
 void setupOpenGLSettings()
 {
@@ -56,10 +37,10 @@ void initOpenGL()
 
     setupOpenGLSettings();
 
-    setupWorld();
+    world_setupWorld();
 }
 
-float startFrame()
+double startFrame()
 {
     double currentTime, deltaTime;
 
@@ -79,6 +60,8 @@ float startFrame()
 
 void endFrame()
 {
+    resetFrame();
+
     updateViewMatrix();
 
     drawScene();
@@ -86,20 +69,26 @@ void endFrame()
     swapBuffersAndPoll();
 }
 
-//double lastTime = 0;
-void drawScene()
+void draw3D()
 {
-    // Clear the screen
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    drawWorld(worldObj);
+    world_drawWorld();
 
     drawEntities();
-    
-    if (con_isOpen())
-        drawConsole();
+}
+
+void draw2D()
+{
+    con_drawConsole();
+
+    tb_drawTextBoxes();
 
     drawFPS(frameInfo.frameDeltaTime);
+}
+
+void drawScene()
+{
+    draw3D();
+    draw2D();
 }
 
 void setWireframe(bool isOn)

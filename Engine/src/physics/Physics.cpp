@@ -3,11 +3,11 @@
 
 #include "src/player/player.h"
 
-XClipMap* worldBounds;
+clipAsset* worldBounds;
 
 void initWorldPhysics()
 {
-	worldBounds = findAsset(XASSET_CLIPMAP, "assets\\world\\world.clip").Clip;
+	worldBounds = findAsset(ASSET_CLIPMAP, "assets\\world\\world.clip", true).clip;
 }
 
 enum collisionSide
@@ -22,7 +22,7 @@ enum collisionSide
 };
 
 // returns what side of the cube is being intersected
-int isBoundingBoxInCube(ClipBound* bounds, ClipBound* cubeBounds)
+int isBoundingBoxInCube(clipBound* bounds, clipBound* cubeBounds)
 {
 	float boundRight = bounds->origin.x + bounds->maxs.x;
 	float boundLeft = bounds->origin.x + bounds->mins.x;
@@ -89,7 +89,7 @@ int isBoundingBoxInCube(ClipBound* bounds, ClipBound* cubeBounds)
 
 void updatePhysics()
 {
-	ClipBound nextPosition;
+	clipBound nextPosition;
 
 	nextPosition.origin = playerStruct.phys.position + playerStruct.phys.acceleration;
 	nextPosition.mins = playerStruct.phys.mins;
@@ -158,7 +158,7 @@ void updateFriction(float deltaTime)
 	playerStruct.phys.acceleration.z += oposingForce.z;
 }
 
-void updatePlayerPhysics(float deltaTime)
+void updatePlayerPhysics(double deltaTime)
 {
 	if (!playerStruct.phys.isGrounded)
 	{

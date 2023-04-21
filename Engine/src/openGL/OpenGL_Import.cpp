@@ -16,23 +16,11 @@ GLuint imoprtTextureIntoGL(int width, int height, unsigned char* data)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    //glGenerateMipmap(GL_TEXTURE_2D);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glGenerateMipmap(GL_TEXTURE_2D);
 
     // Return the ID of the texture we just created
     return textureID;
-}
-
-GLuint loadMaterialAssetIntoGL(const char* materialName)
-{
-    XMaterial* material = findAsset(XASSET_MATERIAL, materialName).XMaterial;
-    if (material == NULL)
-    {
-        printf("Material not found!\n");
-        return -1;
-    }
-
-    return imoprtTextureIntoGL(material->width, material->height, material->imageData);
 }
 
 GLuint loadDiskImageIntoGL(const char* imageName)

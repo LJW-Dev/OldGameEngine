@@ -7,7 +7,7 @@ jmp_buf mainErrorBuf;
 
 #define ERROR_STATUS -1
 
-void error_exit(const char* format, ...)
+[[noreturn]] void error_exit(const char* format, ...)
 {
 	char buffer[1000];
 

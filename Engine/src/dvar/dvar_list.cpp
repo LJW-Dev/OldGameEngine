@@ -12,14 +12,14 @@ s_dvar* sv_timestep;
 s_dvar* cl_wireframe;
 s_dvar* cl_sensitivity;
 
-void dvar_game_exit(s_paramInfo* arguments)
+void dvar_game_exit()
 {
 	window_windowShouldClose();
 }
 
-void dvar_cl_wireframe(s_paramInfo* arguments)
+void dvar_cl_wireframe()
 {
-	char* argVal = command_getNextParam(arguments);
+	char* argVal = command_getNextParam();
 	if (argVal == NULL)
 		return;
 

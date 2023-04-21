@@ -1,24 +1,14 @@
-#include "src/window/utils/utils.h"
-#include "src\openGL\OpenGL_Draw.h"
-#include "src/assetDB/AssetDB.h"
 #include "src/commands/commands.h"
-#include "src/input/keyboard.h"
+#include "src/input/textBox.h"
 
-#include  <string.h>
-#include "src/dvar/dvar.h"
+#include <GLFW/glfw3.h>
 
 struct s_console
 {
 	bool isEnabled;
 	bool isOpen;
 
-	XFont* consoleFont;
-
-	s_keyboardInfo kbInfo;
-
-	int x;
-	int y;
-	int size;
+	int textBox;
 };
 
 s_console console;
@@ -32,19 +22,25 @@ void con_setState(bool isOpen)
 {
 	if (console.isEnabled)
 	{
-		console.isOpen = isOpen;
-
 		if (isOpen)
-			kb_setFocus(&console.kbInfo);
+		{
+			tb_setFocus(console.textBox, true);
+			tb_shouldRender(console.textBox, true);
+		}
 		else
-			kb_removeFocus();
+		{
+			tb_setFocus(console.textBox, false);
+			tb_shouldRender(console.textBox, false);
+		}
+
+		console.isOpen = isOpen;
 	}
 }
 
 void con_executeCommand()
 {
-	command_send(console.kbInfo.buffer);
-	kb_resetBuffer();
+	command_send(tb_getText(console.textBox));
+	tb_resetText(console.textBox);
 }
 
 void con_close()
@@ -52,24 +48,16 @@ void con_close()
 	con_setState(false);
 }
 
-void initConsole()
+void con_initConsole()
 {
 	console.isEnabled = true;
 	console.isOpen = false;
-	console.consoleFont = findAsset(XASSET_FONT, "assets\\fonts\\font.bin").XFont;
 
-	console.x = 10;
-	console.y = 500;
-	console.size = 30;
-
-	console.kbInfo.closeKey = GLFW_KEY_GRAVE_ACCENT;
-	console.kbInfo.onClosedCallback = con_close;
-	console.kbInfo.onEnterCallback = con_executeCommand;
-
-	kb_init(&console.kbInfo);
+	console.textBox = tb_init(con_executeCommand, GLFW_KEY_GRAVE_ACCENT, con_close, 10, 500, 30, "assets\\fonts\\font.bin");
 }
 
-void drawConsole()
+void con_drawConsole()
 {
-	printText2D(console.consoleFont, console.kbInfo.buffer, console.x, console.y, console.size);
+	if (!con_isOpen())
+		return;
 }

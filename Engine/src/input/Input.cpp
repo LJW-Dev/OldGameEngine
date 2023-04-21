@@ -2,11 +2,15 @@
 #include "src/window/Window.h"
 #include "src/dvar/dvar_list.h"
 #include "src/console/Console.h"
-#include "keyboard.h"
+#include "textBox.h"
+
+#include "src/commands/commands.h"
 
 #include "src\player\Player.h"
 
 #include <GLFW/glfw3.h>
+
+#include <thread>
 
 #define INPUT_BUF_MAX 10
 
@@ -20,15 +24,8 @@ struct keyPress
 keyPress inputBuffer[INPUT_BUF_MAX];
 int inputBufferSize = 0;
 
-bool lockInputBuffer = false;
-
 void input_keyPressCallback(int key, int action, int mods)
 {
-    while (lockInputBuffer)
-    {
-    
-    }
-
     if (inputBufferSize >= INPUT_BUF_MAX)
         return;
 
@@ -92,13 +89,13 @@ void updateInputs()
     getMousePos(&playerStruct.keyState.mouse_x, &playerStruct.keyState.mouse_y);
     setMousePos(WINDOW_X / 2, WINDOW_Y / 2);
     
-    lockInputBuffer = true;
+    bool textBoxFocused = tb_hasFocus();
     
     for (int i = 0; i < inputBufferSize; i++)
     {
-        if (kb_hasFocus())
+        if (textBoxFocused)
         {
-            kb_parseKeyStroke(inputBuffer[i].key, inputBuffer[i].action, inputBuffer[i].modifier);
+            tb_parseKeyStroke(inputBuffer[i].key, inputBuffer[i].action, inputBuffer[i].modifier);
             continue;
         }
 
@@ -107,8 +104,6 @@ void updateInputs()
         updateKeyBind(inputBuffer[i].key, isKeyDown);
     }
     inputBufferSize = 0;
-
-    lockInputBuffer = false;
 }
 
 

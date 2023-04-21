@@ -14,5 +14,5 @@ using namespace glm;
 
 #include "src/player/Player.h"
 
-void updatePlayerPhysics(float deltaTime);
+void updatePlayerPhysics(double deltaTime);
 void initWorldPhysics();

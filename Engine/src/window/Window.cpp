@@ -1,11 +1,13 @@
-#include <GL/glew.h>
-#include <stdio.h>
+
 
 #include "src/window/Window.h"
 #include "src/dvar/dvar_list.h"
-#include "window_callback.h"
+#include "src/input/Input.h"
 
 
+#include <GL/glew.h>
+#include <stdio.h>
+#include <GLFW/glfw3.h>
 
 struct s_windowInfo
 {
@@ -24,6 +26,21 @@ void window_windowShouldClose()
 void window_setFocus(bool focused)
 {
     windowInfo.isFocused = focused;
+}
+
+void window_keyPressCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    input_keyPressCallback(key, action, mods);
+}
+
+void window_FocusCallback(GLFWwindow* window, int focused)
+{
+    window_setFocus(focused);
+}
+
+void window_closeCallback(GLFWwindow* window)
+{
+    window_windowShouldClose();
 }
 
 void initCallbacks()

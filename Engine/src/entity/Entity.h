@@ -1,7 +1,6 @@
 #pragma once
 
 #include "src\assetDB\AssetDB.h"
-#include "src/openGL/OpenGL_Import.h"
 
 #define MAX_ENTITIES 30
 
@@ -9,8 +8,7 @@ struct entityInfo
 {
     bool isUsed;
 
-    XModel* model;
-    GLuint texture;
+    modelAsset* model;
     float xPos;
     float yPos;
     float zPos;
@@ -24,5 +22,5 @@ struct entityInfo
     float zScale;
 };
 
-void addEntity(float x, float y, float z);
+entityInfo* addEntity(float x, float y, float z, const char* model);
 void drawEntities();

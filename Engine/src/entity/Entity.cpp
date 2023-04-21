@@ -1,17 +1,17 @@
 #include "Entity.h"
 #include "src/openGL/OpenGL_Draw.h"
+#include "src/error/error.h"
 
 entityInfo entityList[MAX_ENTITIES];
 
-void addEntity(float x, float y, float z)
+entityInfo* addEntity(float x, float y, float z, const char* model)
 {
     for (int i = 0; i < MAX_ENTITIES; i++)
     {
         if (!entityList[i].isUsed)
         {
             entityList[i].isUsed = true;
-            entityList[i].model = findAsset(XASSET_MODEL, "assets\\models\\cube.model").XModel;
-            entityList[i].texture = loadMaterialAssetIntoGL("assets\\materials\\cube_texture.bmp");
+            entityList[i].model = findAsset(ASSET_MODEL, model, true).model;
 
             entityList[i].xPos = x;
             entityList[i].yPos = y;
@@ -25,12 +25,20 @@ void addEntity(float x, float y, float z)
             entityList[i].yScale = 1.0f;
             entityList[i].zScale = 1.0f;
 
-            return;
+            return &entityList[i];
         }
     }
+
+    error_noexit("addEntity: No more space.");
+
+    return NULL;
 }
 
 void drawEntities()
 {
-    drawEntities(entityList);
+    for (int i = 0; i < MAX_ENTITIES; i++)
+    {
+        if (entityList[i].isUsed)
+            drawEntity(entityList);
+    }
 }

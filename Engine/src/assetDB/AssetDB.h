@@ -3,21 +3,21 @@
 #include <glm/glm.hpp>
 using namespace glm;
 
-enum xAssetType
+enum e_assetType
 {
-	XASSET_NULL = -1,
+	ASSET_NULL = -1,
 
-	XASSET_FONT = 0,
-	XASSET_MATERIAL,
-	XASSET_MODEL,
-	XASSET_CLIPMAP,
-	XASSET_WORLD,
-	XASSET_SCRIPT,
+	ASSET_FONT = 0,
+	ASSET_MATERIAL,
+	ASSET_MODEL,
+	ASSET_CLIPMAP,
+	ASSET_WORLD,
+	ASSET_SCRIPT,
 
-	XASSET_MAX = XASSET_SCRIPT // Change when adding new assets
+	ASSET_MAX = ASSET_SCRIPT // Change when adding new assets
 };
 
-struct xAsset
+struct s_assetPool
 {
 	int maxPoolSize;
 	int usedCount;
@@ -26,30 +26,29 @@ struct xAsset
 	char* pool;
 };
 
-struct XScript
+struct scriptAsset
 {
 	char* name;
 
-	int scrLen;
-	int mainFuncPtr;
+	int length;
 	char* script;
 };
 
-struct XMaterial
+struct materialAsset
 {
 	char* name;
 
 	int width;
 	int height;
-	unsigned char* imageData;
+	int channels;
 
 	int openGLTexture;
 };
 
-struct XFont
+struct fontAsset
 {
 	char* name;
-	XMaterial* texture;
+	materialAsset* texture;
 	
 	int lettersPerLine;
 	int glyphHeight;
@@ -58,7 +57,7 @@ struct XFont
 	char glyphWidthArray[256];
 };
 
-struct XModel
+struct modelAsset
 {
 	char* name;
 
@@ -67,6 +66,8 @@ struct XModel
 
 	float* UVs;
 	int UVCount;
+
+	materialAsset* texture;
 };
 
 struct worldData
@@ -75,7 +76,7 @@ struct worldData
 	float* data;
 };
 
-struct XworldObject
+struct worldAsset
 {
 	char* name;
 
@@ -86,29 +87,29 @@ struct XworldObject
 	worldData* UVDataArray;
 };
 
-struct ClipBound
+struct clipBound
 {
 	glm::vec3 origin;
 	glm::vec3 mins;
 	glm::vec3 maxs;
 };
 
-struct XClipMap
+struct clipAsset
 {
 	char* name;
 
 	int numClipBounds;
-	ClipBound* clips;
+	clipBound* clips;
 };
 
-union XAssetHeader
+union assetHeader
 {
-	XModel* XModel;
-	XFont* XFont;
-	XMaterial* XMaterial;
-	XworldObject* World;
-	XClipMap* Clip;
-	XScript* Script;
+	modelAsset* model;
+	fontAsset* font;
+	materialAsset* material;
+	worldAsset* world;
+	clipAsset* clip;
+	scriptAsset* script;
 	void* data;
 };
 
@@ -116,6 +117,6 @@ union XAssetHeader
 
 #define MAX_ASSET_NAME_LEN 0x100
 
-void initXAssetPool();
-XAssetHeader findAsset(xAssetType type, const char* name);
+void initAssetPool();
+assetHeader findAsset(e_assetType type, const char* name, bool errorifMissing);
 void loadAssets();

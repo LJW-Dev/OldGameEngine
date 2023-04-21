@@ -11,7 +11,7 @@
 s_dvar dvarArray[DVAR_MAX];
 int dvarCount = 0;
 
-s_dvar* dvar_Register(const char* dvarName, const char* description, e_dvarTypes type, u_dvarData dvarData)
+s_dvar* dvar_register(const char* dvarName, const char* description, e_dvarTypes type, u_dvarData dvarData)
 {
 	if (dvarCount >= DVAR_MAX)
 	{
@@ -32,6 +32,7 @@ s_dvar* dvar_Register(const char* dvarName, const char* description, e_dvarTypes
 	}
 
 	s_dvar* currDvar = &dvarArray[dvarCount];
+	dvarCount++;
 
 	currDvar->name = dvarName;
 	currDvar->description = description;
@@ -47,8 +48,6 @@ s_dvar* dvar_Register(const char* dvarName, const char* description, e_dvarTypes
 		currDvar->dvarData.data.minValue = dvarData.data.minValue;
 		currDvar->dvarData.data.maxValue = dvarData.data.maxValue;
 	}
-	
-	dvarCount++;
 
 	return currDvar;
 }
@@ -61,7 +60,7 @@ s_dvar* dvar_RegisterInteger(const char* dvarName, const char* description, int 
 	dvarData.data.maxValue.integer_t = maxValue;
 	dvarData.data.curValue.integer_t = defaultValue;
 
-	return dvar_Register(dvarName, description, DVAR_INTEGER, dvarData);
+	return dvar_register(dvarName, description, DVAR_INTEGER, dvarData);
 }
 
 s_dvar* dvar_RegisterFloat(const char* dvarName, const char* description, float defaultValue, float minValue, float maxValue)
@@ -72,7 +71,7 @@ s_dvar* dvar_RegisterFloat(const char* dvarName, const char* description, float 
 	dvarData.data.maxValue.float_t = maxValue;
 	dvarData.data.curValue.float_t = defaultValue;
 
-	return dvar_Register(dvarName, description, DVAR_FLOAT, dvarData);
+	return dvar_register(dvarName, description, DVAR_FLOAT, dvarData);
 }
 
 s_dvar* dvar_RegisterBool(const char* dvarName, const char* description, bool defaultValue)
@@ -83,16 +82,16 @@ s_dvar* dvar_RegisterBool(const char* dvarName, const char* description, bool de
 	dvarData.data.maxValue.bool_t = 1;
 	dvarData.data.curValue.bool_t = defaultValue;
 
-	return dvar_Register(dvarName, description, DVAR_BOOL, dvarData);
+	return dvar_register(dvarName, description, DVAR_BOOL, dvarData);
 }
 
-s_dvar* dvar_RegisterFunction(const char* dvarName, const char* description, void (*function)(s_paramInfo* arguments))
+s_dvar* dvar_RegisterFunction(const char* dvarName, const char* description, void (*function)())
 {
 	u_dvarData dvarData;
 
 	dvarData.function = function;
 
-	return dvar_Register(dvarName, description, DVAR_FUNC, dvarData);
+	return dvar_register(dvarName, description, DVAR_FUNC, dvarData);
 }
 
 s_dvar* dvar_findVar(char* dvarName)
@@ -111,12 +110,12 @@ s_dvar* dvar_findVar(char* dvarName)
 	return NULL;
 }
 
-void dvar_call(s_dvar* dvar, s_paramInfo* arguments)
+void dvar_call(s_dvar* dvar)
 {
 	if (dvar->type != DVAR_FUNC)
 		error_exit("Dvar %s not a function!\n", dvar->name);
 
-	dvar->dvarData.function(arguments);
+	dvar->dvarData.function();
 }
 
 bool dvar_getBool(s_dvar* dvar)

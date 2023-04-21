@@ -3,6 +3,9 @@
 #include "src/player/Player.h"
 
 #include <vector>
+#include <glm/gtx/transform.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
 
 struct shader_textureInfo
 {
@@ -45,22 +48,41 @@ struct shader_colourInfo
 };
 
 shader_textureInfo shaderTextureInfo;
-shader_textInfo shaderTextInfo;
+shader_textInfo shader2DTextureInfo;
 shader_colourInfo shaderColourInfo;
 
-void draw2D(GLuint texture, void* verts, int vertSize, int vertexCount, void* UVs, int UVSize)
+void resetFrame()
+{
+    // Clear the screen
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
+
+void draw2DTextured(GLuint texture, void* verts, int vertexCount, void* UVs, int UVCount)
 {
     // Bind shader
-    glUseProgram(shaderTextInfo.shaderID);
+    glUseProgram(shader2DTextureInfo.shaderID);
 
     glBindTexture(GL_TEXTURE_2D, texture);
 
-    glBindBuffer(GL_ARRAY_BUFFER, shaderTextInfo.vertexBuffer);
-    glBufferData(GL_ARRAY_BUFFER, vertSize, verts, GL_STATIC_DRAW);
-    glBindBuffer(GL_ARRAY_BUFFER, shaderTextInfo.UVBuffer);
-    glBufferData(GL_ARRAY_BUFFER, UVSize, UVs, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, shader2DTextureInfo.vertexBuffer);
+    glBufferData(GL_ARRAY_BUFFER, vertexCount * sizeof(glm::vec2), verts, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, shader2DTextureInfo.UVBuffer);
+    glBufferData(GL_ARRAY_BUFFER, UVCount * sizeof(glm::vec2), UVs, GL_STATIC_DRAW);
+    
+    glDrawArrays(GL_TRIANGLES, 0, vertexCount);
+}
 
-    // Draw call
+void draw3DTextured(GLuint texture, void* verts, int vertexCount, void* UVs, int UVCount)
+{
+    glUseProgram(shaderTextureInfo.shaderID);
+
+    glBindTexture(GL_TEXTURE_2D, texture);
+
+    glBindBuffer(GL_ARRAY_BUFFER, shaderTextureInfo.vertexBuffer);
+    glBufferData(GL_ARRAY_BUFFER, vertexCount * sizeof(float), verts, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, shaderTextureInfo.UVBuffer);
+    glBufferData(GL_ARRAY_BUFFER, UVCount * sizeof(float), UVs, GL_STATIC_DRAW);
+
     glDrawArrays(GL_TRIANGLES, 0, vertexCount);
 }
 
@@ -95,10 +117,10 @@ void drawImage2D(GLuint texture, int x, int y, int size)
     UVs.push_back(uv_up_right);
     UVs.push_back(uv_down_left);
 
-    draw2D(texture, &vertices[0], vertices.size() * sizeof(glm::vec2), vertices.size(), &UVs[0], UVs.size() * sizeof(glm::vec2));
+    draw2DTextured(texture, &vertices[0], vertices.size(), &UVs[0], UVs.size());
 }
 
-void printText2D(XFont* font, const char* text, int x, int y, int size)
+void drawText2D(fontAsset* font, const char* text, int x, int y, int size)
 {
     if (text[0] == '\x0')
         return;
@@ -147,10 +169,10 @@ void printText2D(XFont* font, const char* text, int x, int y, int size)
         UVs.push_back(uv_down_left);
     }
 
-    draw2D(font->texture->openGLTexture, &vertices[0], vertices.size() * sizeof(glm::vec2), vertices.size(), &UVs[0], UVs.size() * sizeof(glm::vec2));
+    draw2DTextured(font->texture->openGLTexture, &vertices[0], vertices.size(),&UVs[0], UVs.size());
 }
 
-void drawWorld(XworldObject* worldObj)
+void drawWorld(worldAsset* worldObj)
 {
     glUseProgram(shaderTextureInfo.shaderID);
 
@@ -158,19 +180,11 @@ void drawWorld(XworldObject* worldObj)
 
     for (int i = 0; i < worldObj->numObjs; i++) 
     {
-        glBindTexture(GL_TEXTURE_2D, worldObj->objTextureArray[i]);
-
-        glBindBuffer(GL_ARRAY_BUFFER, shaderTextureInfo.vertexBuffer);
-        glBufferData(GL_ARRAY_BUFFER, worldObj->vertexDataArray[i].count * sizeof(float), worldObj->vertexDataArray[i].data, GL_STATIC_DRAW); //size is num of bytes
-
-        glBindBuffer(GL_ARRAY_BUFFER, shaderTextureInfo.UVBuffer);
-        glBufferData(GL_ARRAY_BUFFER, worldObj->UVDataArray[i].count * sizeof(float), worldObj->UVDataArray[i].data, GL_STATIC_DRAW); //size is num of bytes
-
-        glDrawArrays(GL_TRIANGLES, 0, worldObj->vertexDataArray[i].count / 3);
+       draw3DTextured(worldObj->objTextureArray[i], worldObj->vertexDataArray[i].data, worldObj->vertexDataArray[i].count, worldObj->UVDataArray[i].data, worldObj->UVDataArray[i].count);
     }
 }
 
-void drawObject(float x, float y, float z, float rotX, float rotY, float rotZ, XModel* model, XMaterial* material)
+void drawObject(float x, float y, float z, float rotX, float rotY, float rotZ, modelAsset* model)
 {
     glUseProgram(shaderTextureInfo.shaderID);
     
@@ -181,50 +195,25 @@ void drawObject(float x, float y, float z, float rotX, float rotY, float rotZ, X
     // This is done in the main loop since each model will have a different MVP matrix (At least for the M part)
     glUniformMatrix4fv(shaderTextureInfo.uniform_MVP, 1, GL_FALSE, &MVP[0][0]);
 
-    glBindTexture(GL_TEXTURE_2D, material->openGLTexture);
-
-    glBindBuffer(GL_ARRAY_BUFFER, shaderTextureInfo.vertexBuffer);
-    glBufferData(GL_ARRAY_BUFFER, model->vertexCount * sizeof(float), model->vertexes, GL_STATIC_DRAW); //size is num of bytes
-
-    glBindBuffer(GL_ARRAY_BUFFER, shaderTextureInfo.UVBuffer);
-    glBufferData(GL_ARRAY_BUFFER, model->UVCount * sizeof(float), model->UVs, GL_STATIC_DRAW); //size is num of bytes
-
-    glDrawArrays(GL_TRIANGLES, 0, model->vertexCount / 3);  //indecies are an xyz point in space, so div by 3 as vertexCount is a count of floats in the array
+    draw3DTextured(model->texture->openGLTexture, model->vertexes, model->vertexCount, model->UVs, model->UVCount);
 }
 
-void drawEntities(entityInfo* entArray)
+void drawEntity(entityInfo* ent)
 {
     glUseProgram(shaderTextureInfo.shaderID);
 
-    for (int i = 0; i < MAX_ENTITIES; i++)
-    {
-        entityInfo ent = entArray[i];
+    glm::vec3 entPos = glm::vec3(ent->xPos, ent->yPos, ent->zPos);
 
-        if (!ent.isUsed)
-            continue;
+    glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f), entPos);
+    glm::mat4 rotationnMatrix = glm::rotate(glm::mat4(1.0f), 3.0f, entPos);
+    
+    glm::mat4 MVP = playerStruct.renderInfo.ViewProjectionMatrix * translationMatrix;
 
-        glm::vec3 entPos = glm::vec3(ent.xPos, ent.yPos, ent.zPos);
+    // Send our transformation to the currently bound shader, in the "MVP" uniform
+    // This is done in the main loop since each model will have a different MVP matrix (At least for the M part)
+    glUniformMatrix4fv(shaderTextureInfo.uniform_MVP, 1, GL_FALSE, &MVP[0][0]);
 
-        glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f), entPos);
-        glm::mat4 rotationnMatrix = glm::rotate(glm::mat4(1.0f), 3.0f, entPos);
-        
-        glm::mat4 Model = translationMatrix * rotationnMatrix;
-        glm::mat4 MVP = playerStruct.renderInfo.ViewProjectionMatrix * Model;
-
-        // Send our transformation to the currently bound shader, in the "MVP" uniform
-        // This is done in the main loop since each model will have a different MVP matrix (At least for the M part)
-        glUniformMatrix4fv(shaderTextureInfo.uniform_MVP, 1, GL_FALSE, &MVP[0][0]);
-
-        glBindTexture(GL_TEXTURE_2D, ent.texture);
-
-        glBindBuffer(GL_ARRAY_BUFFER, shaderTextureInfo.vertexBuffer);
-        glBufferData(GL_ARRAY_BUFFER, ent.model->vertexCount * sizeof(float), ent.model->vertexes, GL_STATIC_DRAW); //size is num of bytes
-
-        glBindBuffer(GL_ARRAY_BUFFER, shaderTextureInfo.UVBuffer);
-        glBufferData(GL_ARRAY_BUFFER, ent.model->UVCount * sizeof(float), ent.model->UVs, GL_STATIC_DRAW); //size is num of bytes
-
-        glDrawArrays(GL_TRIANGLES, 0, ent.model->vertexCount / 3);  //indecies are an xyz point in space, so div by 3 as vertexCount is a count of floats in the array
-    }
+    draw3DTextured(ent->model->texture->openGLTexture, ent->model->vertexes, ent->model->vertexCount, ent->model->UVs, ent->model->UVCount);
 }
 
 void setupOpenGLTextureShaders()
@@ -274,24 +263,24 @@ void setupOpenGLTextureShaders()
 
 void setupOpenGLTextShaders()
 {
-    shaderTextInfo.vertexBufferIndex = 2;
-    shaderTextInfo.UVBufferIndex = 3;
+    shader2DTextureInfo.vertexBufferIndex = 2;
+    shader2DTextureInfo.UVBufferIndex = 3;
 
     // Initialize VBO
-    glGenBuffers(1, &shaderTextInfo.vertexBuffer);
-    glGenBuffers(1, &shaderTextInfo.UVBuffer);
+    glGenBuffers(1, &shader2DTextureInfo.vertexBuffer);
+    glGenBuffers(1, &shader2DTextureInfo.UVBuffer);
 
     // Initialize Shader
-    shaderTextInfo.shaderID = LoadShaders("shaders\\Text_VertexShader.vertexshader", "shaders\\Text_FragmentShader.fragmentshader");
+    shader2DTextureInfo.shaderID = LoadShaders("shaders\\Text_VertexShader.vertexshader", "shaders\\Text_FragmentShader.fragmentshader");
 
     // Initialize uniforms' IDs
-    shaderTextInfo.uniform_textureSampler = glGetUniformLocation(shaderTextInfo.shaderID, "textureSampler");
+    shader2DTextureInfo.uniform_textureSampler = glGetUniformLocation(shader2DTextureInfo.shaderID, "textureSampler");
 
     // 1rst attribute buffer : vertices
-    glEnableVertexAttribArray(shaderTextInfo.vertexBufferIndex);
-    glBindBuffer(GL_ARRAY_BUFFER, shaderTextInfo.vertexBuffer);
+    glEnableVertexAttribArray(shader2DTextureInfo.vertexBufferIndex);
+    glBindBuffer(GL_ARRAY_BUFFER, shader2DTextureInfo.vertexBuffer);
     glVertexAttribPointer(
-        shaderTextInfo.vertexBufferIndex,
+        shader2DTextureInfo.vertexBufferIndex,
         2, // 2 as only x,y
         GL_FLOAT,
         GL_FALSE,
@@ -299,10 +288,10 @@ void setupOpenGLTextShaders()
         NULL);
 
     // 2nd attribute buffer : UVs
-    glEnableVertexAttribArray(shaderTextInfo.UVBufferIndex);
-    glBindBuffer(GL_ARRAY_BUFFER, shaderTextInfo.UVBuffer);
+    glEnableVertexAttribArray(shader2DTextureInfo.UVBufferIndex);
+    glBindBuffer(GL_ARRAY_BUFFER, shader2DTextureInfo.UVBuffer);
     glVertexAttribPointer(
-        shaderTextInfo.UVBufferIndex,
+        shader2DTextureInfo.UVBufferIndex,
         2,
         GL_FLOAT,
         GL_FALSE,

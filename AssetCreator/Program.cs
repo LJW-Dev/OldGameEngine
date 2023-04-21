@@ -8,9 +8,27 @@ namespace MyApp // Note: actual namespace depends on the project name.
     {
         static void Main(string[] args)
         {
-            ScriptCompiler compiler = new ScriptCompiler();
-
-            compiler.CompileScript(@"E:\Coding\Projects\Engines\GameEngine\Engine\x64\Debug\assets\scripts\main.txt", @"E:\Coding\Projects\Engines\GameEngine\Engine\x64\Debug\assets\scripts\main.script");
+            //if(args.Length == 0)
+            //{
+            //    Console.WriteLine("Incorrect parameters.");
+            //    return;
+            //}
+            //
+            //if (args[0] == "comp")
+            //{
+                ScriptCompiler compiler = new ScriptCompiler();
+                bool result = compiler.CompileScript(@"E:\Coding\Projects\Engines\GameEngine\Engine\x64\Debug\assets\scripts\main.txt", @"E:\Coding\Projects\Engines\GameEngine\Engine\x64\Debug\assets\scripts\main.script");
+            //}
+            //else if (args[0] == "disasm")
+            //{
+            if(result)
+            {
+                ScriptDissasembler dissasembler = new ScriptDissasembler();
+                dissasembler.dissasemble(@"E:\Coding\Projects\Engines\GameEngine\Engine\x64\Debug\assets\scripts\main.script");
+            }
+                
+            //}
+            
         }
 
         

@@ -1,5 +1,3 @@
-#include "src\openGL\compile\StandardOpenGL.h"
-
 #include "src\window\Window.h"
 #include "src\openGL\OpenGL.h" 
 #include "src\openGL\OpenGL_Draw.h" 
@@ -26,7 +24,7 @@ void mainLoop()
 {
     while (!shouldExitWindow())
     {
-        float deltaTime = startFrame();
+        double deltaTime = startFrame();
 
         if (isWindowFocused())
         {
@@ -50,9 +48,9 @@ int main()
 
     initWindow();
 
-    initXAssetPool();
+    initAssetPool();
 
-    initConsole();
+    con_initConsole();
 
     initPlayerStruct();
 

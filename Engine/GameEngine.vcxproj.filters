@@ -53,9 +53,6 @@
     <ClCompile Include="src\console\Console.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\window\utils\utils.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\scripting\script.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -80,23 +77,26 @@
     <ClCompile Include="src\error\error.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\window\window_callback.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\utils\time.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\commands\commands.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\input\keyboard.cpp">
+    <ClCompile Include="src\input\textBox.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\world\world.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\scripting\script_read.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\utils\reader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\openGL\Compile\StandardOpenGL.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\external\stb_image.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -130,9 +130,6 @@
     <ClInclude Include="src\console\Console.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\window\utils\utils.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\scripting\script.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -157,16 +154,22 @@
     <ClInclude Include="src\error\error.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\window\window_callback.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\utils\time.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\commands\commands.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\input\keyboard.h">
+    <ClInclude Include="src\input\textBox.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\world\world.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\scripting\script_vm.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\scripting\script_read.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

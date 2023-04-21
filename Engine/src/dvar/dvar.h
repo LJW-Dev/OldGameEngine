@@ -1,7 +1,5 @@
 #pragma once
 
-#include "src/commands/commands.h"
-
 enum e_dvarTypes
 {
 	DVAR_INTEGER,
@@ -26,7 +24,7 @@ union u_dvarData
 		u_dvarType maxValue;
 	} data;
 
-	void (*function)(s_paramInfo* arguments);
+	void (*function)();
 };
 
 struct s_dvar
@@ -41,7 +39,7 @@ struct s_dvar
 s_dvar* dvar_RegisterInteger(const char* dvarName, const char* description, int defaultValue, int minValue, int maxValue);
 s_dvar* dvar_RegisterFloat(const char* dvarName, const char* description, float defaultValue, float minValue, float maxValue);
 s_dvar* dvar_RegisterBool(const char* dvarName, const char* description, bool defaultValue);
-s_dvar* dvar_RegisterFunction(const char* dvarName, const char* description, void (*function)(s_paramInfo* arguments));
+s_dvar* dvar_RegisterFunction(const char* dvarName, const char* description, void (*function)());
 
 bool dvar_getBool(s_dvar* dvar);
 int dvar_getInt(s_dvar* dvar);
@@ -50,7 +48,7 @@ float dvar_getFloat(s_dvar* dvar);
 void dvar_setBool(s_dvar* dvar, bool value);
 void dvar_setInt(s_dvar* dvar, int value);
 void dvar_setFloat(s_dvar* dvar, float value);
-void dvar_call(s_dvar* dvar, s_paramInfo* arguments);
+void dvar_call(s_dvar* dvar);
 
 s_dvar* dvar_findVar(char* dvarName);
 e_dvarTypes dvar_getType(s_dvar* dvar);

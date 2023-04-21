@@ -1,12 +1,12 @@
 # GameEngine
 
-A game engine i've been making for the past few months.
+A game engine i've been making as a passion project.
 
-My main goal with this project is to learn more about C / C++ and how game engines work in detail.
+My main goal with this project is to learn more about C / C++ and how game engines work in detail, so any engine functionality is self coded.
 
 Todo: 
-- Add support for calling dvar functions instead of only being able to change dvar values
-- Script VM is mostly complete, need to add starting threads from a script
+- Add more scripting builtin functions.
+- Add arrays to scripting.
 - Refactor OpenGL backend to make it simpler to read / use
 - Add an index buffer and shadows to OpenGL
 - Improve 2D rendering to make it less buggy and nicer to look at
