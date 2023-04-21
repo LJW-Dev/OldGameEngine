@@ -18,7 +18,6 @@ void scr_killCurrThread()
 void scr_error(const char* msg)
 {
 	scr_killCurrThread();
-	
 	error_noexit("Script Error: %s", msg);
 }
 
@@ -292,6 +291,11 @@ void execCurrThread()
 	{
 		char opcode = *scrVM.currThread->scriptPos;
 		scrVM.currThread->scriptPos++;
+
+		if (opcode >= e_opcodeMax)
+			scr_error("opcode was greater than e_opcodeMax!");
+
+		printf("%i\n", opcode);
 
 		opcodeFuncArray[opcode]();
 	}

@@ -700,8 +700,14 @@ void op_greaterThanOrEqual()
 	scr_pushToStack(value);
 }
 
+void op_voidOpcode()
+{
+	scr_error("op_voidOpcode was called.");
+}
+
 void (*opcodeFuncArray[])() =
 {
+	op_voidOpcode, // scripts are mostly 0s, so scr_error will be called if the opcode is 0
 	op_pushNull,
 	op_pushBool,
 	op_pushInt,
@@ -733,40 +739,4 @@ void (*opcodeFuncArray[])() =
 	op_greaterThan,
 	op_lessThanOrEqual,
 	op_greaterThanOrEqual
-};
-
-enum opcodeNameEnum 
-{
-	OP_pushNull,
-	OP_pushBool,
-	OP_pushInt,
-	OP_pushFloat,
-	OP_pushString,
-	OP_jump,
-	OP_jumpOnTrue,
-	OP_jumpOnFalse,
-	OP_callBuiltin,
-	OP_callScript,
-	OP_callScriptThreaded,
-	OP_popParams,
-	OP_end,
-	OP_wait,
-	OP_getVar,
-	OP_setVar,
-	OP_or,
-	OP_xor,
-	OP_and,
-	OP_shiftLeft,
-	OP_shiftRight,
-	OP_add,                 // Var on top of stack is added to the var next on the stack
-	OP_minus,               // Var next on the stack is subtracted from the var on top of the stack
-	OP_multiply,            // Var on top of stack is multiplied with the var next on the stack
-	OP_divide,              // Var on top of stack is divided by the var next on the stack
-	OP_modulus,             // Var on top of stack is modulo by the var next on the stack
-	OP_equal,
-	OP_notEqual,
-	OP_lessThan,
-	OP_greaterThan,
-	OP_lessThanOrEqual,
-	OP_greaterThanOrEqual
 };

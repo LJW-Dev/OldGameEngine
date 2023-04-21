@@ -13,6 +13,7 @@ namespace AssetCompiler
         {
             BinaryReader reader = new BinaryReader(File.Open(filePath, FileMode.Open));
 
+            // will add fixups later
             int stringTablePtr = reader.ReadInt32();
             int stringTableCount = reader.ReadInt32();
 
@@ -24,10 +25,13 @@ namespace AssetCompiler
 
             while(reader.BaseStream.Position < stringTablePtr)
             {
-                Console.Write("0x{0:X} ", reader.BaseStream.Position);
-
+                long opcodePos = reader.BaseStream.Position;
                 OpcodeList opcode = (OpcodeList)reader.ReadByte();
                 long opcodeDataPos = reader.BaseStream.Position;
+
+                Console.Write("0x{0:X} {1} ", opcodePos, opcode.ToString());
+
+                
 
                 switch (opcode)
                 {
@@ -50,38 +54,39 @@ namespace AssetCompiler
                     case OpcodeList.op_and:
                     case OpcodeList.op_shiftLeft:
                     case OpcodeList.op_shiftRight:
-                        Console.WriteLine(opcode.ToString());
+                        Console.WriteLine();
                         break;
 
                     case OpcodeList.op_getVar:
                     case OpcodeList.op_setVar:
                     case OpcodeList.op_pushInt:
-                        Console.WriteLine(String.Format("{0} {1}", opcode.ToString(), reader.ReadInt32()));
+                        Console.WriteLine("{0}", reader.ReadInt32());
                         break;
 
                     case OpcodeList.op_pushFloat:
-                        Console.WriteLine(String.Format("{0} {1}", opcode.ToString(), reader.ReadSingle()));
+                        Console.WriteLine("{0}", reader.ReadSingle());
                         break;
 
                     case OpcodeList.op_callBuiltin:
                     case OpcodeList.op_pushString:
-                        Console.WriteLine(String.Format("{0} {1}", opcode.ToString(), reader.ReadInt64()));
+                        Console.WriteLine("{0}", reader.ReadInt64());
                         break;
 
                     case OpcodeList.op_pushBool:
-                        Console.WriteLine(String.Format("{0} {1}", opcode.ToString(), reader.ReadByte()));
+                        Console.WriteLine("{0}", reader.ReadByte());
                         break;
 
                     case OpcodeList.op_jump:
                     case OpcodeList.op_jumpOnTrue:
                     case OpcodeList.op_jumpOnFalse:
-                        Console.WriteLine(String.Format("{0} 0x{1:X}", opcode.ToString(), opcodeDataPos + reader.ReadInt32()));
+                        Console.WriteLine("0x{0:X}", opcodeDataPos + reader.ReadInt32());
                         break;
 
                     case OpcodeList.op_callScript:
                     case OpcodeList.op_callScriptThreaded:
-                        reader.ReadInt32();
-                        Console.WriteLine(String.Format("{0} 0x{1:X}", opcode.ToString(), opcodeDataPos + reader.ReadInt32()));
+                        byte paramCount = reader.ReadByte();
+                        long callPos = opcodeDataPos + reader.ReadInt32();
+                        Console.WriteLine("0x{0:X}, param count {1}", callPos, paramCount);
                         break;
                 }
                 

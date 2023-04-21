@@ -188,7 +188,7 @@ namespace AssetCompiler
             else
                 opcode = OpcodeList.op_callScript;
 
-            script.emitOpcode(opcode, (byte)paramCount, function.info.bytecodePtr - (script.getPos() + 1));
+            script.emitOpcode(opcode, (byte)paramCount, function.info.bytecodePtr - (script.getPos() + 1)); // +1 to account for opcode
 
             return true;
         }
@@ -199,7 +199,7 @@ namespace AssetCompiler
             int paramCount = parseParamList(node.ChildNodes[1]);
 
             if(paramCount > byte.MaxValue)
-                throw new ScriptException(String.Format("Function {0} cannot have more than 255 parameters (how?)!", callName), node);
+                throw new ScriptException(String.Format("Function {0} cannot have more than 255 parameters! (wow)", callName), node);
 
             if (!emitLocalCall(callName, paramCount, isThreaded, node) && !emitBuiltinCall(callName, paramCount, isThreaded, node))
                 throw new ScriptException(String.Format("Function {0} does not exist!", callName), node);

@@ -4,17 +4,18 @@
     {
         public enum OpcodeList
         {
+            op_voidOpcode,
             op_pushNull,      
             op_pushBool,
             op_pushInt,
             op_pushFloat,
             op_pushString,
-            op_jump,
-            op_jumpOnTrue,
-            op_jumpOnFalse,
+            op_jump,                //jump pos is calculated from pos AFTER opcode
+            op_jumpOnTrue,          //jump pos is calculated from pos AFTER opcode
+            op_jumpOnFalse,         //jump pos is calculated from pos AFTER opcode
             op_callBuiltin,
-            op_callScript,
-            op_callScriptThreaded,
+            op_callScript,          //jump pos is calculated from pos AFTER opcode
+            op_callScriptThreaded,  //jump pos is calculated from pos AFTER opcode
             op_end,
             op_wait,
             op_getVar,
